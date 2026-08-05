@@ -15,3 +15,7 @@ services:
       # 让 Python 日志实时刷出（便于在 Render 日志里看判题/语言探测输出）
       - key: PYTHONUNBUFFERED
         value: "1"
+      # 接 Supabase 免费 Postgres 后，在此填入 DATABASE_URL（格式 postgresql://user:pass@host/db）
+      # 没接之前留空即可，应用会自动回退到内置 SQLite（临时盘，重启会重置）
+      # - key: DATABASE_URL
+      #   value: "postgresql://postgres:PASSWORD@db.xxxx.supabase.co:5432/postgres"

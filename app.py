@@ -6,8 +6,9 @@ PTA 风格在线判题平台（Flask + SQLite）
 """
 import os
 import json
-import sqlite3
 from functools import wraps
+
+from db import connect, is_postgres, PG_SCHEMA, SQLITE_SCHEMA, IntegrityError
 
 from flask import (
     Flask, request, session, redirect, url_for, render_template, g, flash,
@@ -87,9 +88,7 @@ _augment_compiler_path()
 def get_db():
     db = getattr(g, "_db", None)
     if db is None:
-        db = g._db = sqlite3.connect(DB_PATH)
-        db.row_factory = sqlite3.Row
-        db.execute("PRAGMA foreign_keys=ON")
+        db = g._db = connect()
     return db
 
 
@@ -101,109 +100,12 @@ def close_db(exc):
 
 
 def init_db():
-    db = sqlite3.connect(DB_PATH)
-    db.row_factory = sqlite3.Row
-    db.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL,
-            password_hash TEXT NOT NULL,
-            role TEXT NOT NULL DEFAULT 'student',
-            created_at TEXT DEFAULT (datetime('now','localtime'))
-        );
-        CREATE TABLE IF NOT EXISTS problems (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            description TEXT NOT NULL DEFAULT '',
-            difficulty TEXT DEFAULT '简单',
-            time_limit_ms INTEGER DEFAULT 2000,
-            memory_limit_mb INTEGER DEFAULT 256,
-            allowed_languages TEXT NOT NULL DEFAULT '["c","cpp","py"]',
-            default_language TEXT DEFAULT 'c',
-            order_index INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now','localtime'))
-        );
-        CREATE TABLE IF NOT EXISTS testcases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            problem_id INTEGER NOT NULL,
-            point_id INTEGER,
-            input_text TEXT NOT NULL DEFAULT '',
-            expected_text TEXT NOT NULL DEFAULT '',
-            is_sample INTEGER DEFAULT 0,
-            FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS test_points (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            problem_id INTEGER NOT NULL,
-            name TEXT NOT NULL DEFAULT '测试点',
-            score INTEGER DEFAULT 1,
-            order_index INTEGER DEFAULT 0,
-            FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS submissions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            problem_id INTEGER NOT NULL,
-            language TEXT NOT NULL,
-            code TEXT NOT NULL,
-            status TEXT NOT NULL,
-            passed INTEGER DEFAULT 0,
-            total INTEGER DEFAULT 0,
-            max_runtime_ms INTEGER,
-            compile_error TEXT DEFAULT '',
-            results_json TEXT DEFAULT '',
-            submitted_at TEXT DEFAULT (datetime('now','localtime')),
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (problem_id) REFERENCES problems(id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_sub_user ON submissions(user_id);
-        CREATE INDEX IF NOT EXISTS idx_sub_prob ON submissions(problem_id);
-
-        CREATE TABLE IF NOT EXISTS problem_sets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            description TEXT NOT NULL DEFAULT '',
-            created_at TEXT DEFAULT (datetime('now','localtime'))
-        );
-        CREATE TABLE IF NOT EXISTS problem_set_items (
-            set_id INTEGER NOT NULL,
-            problem_id INTEGER NOT NULL,
-            order_index INTEGER DEFAULT 0,
-            PRIMARY KEY (set_id, problem_id),
-            FOREIGN KEY (set_id) REFERENCES problem_sets(id) ON DELETE CASCADE,
-            FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE CASCADE
-        );
-        CREATE INDEX IF NOT EXISTS idx_psi_set ON problem_set_items(set_id);
-        CREATE INDEX IF NOT EXISTS idx_psi_prob ON problem_set_items(problem_id);
-
-        CREATE TABLE IF NOT EXISTS learn_languages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            code TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL,
-            tag TEXT NOT NULL DEFAULT '',
-            intro TEXT NOT NULL DEFAULT '',
-            roadmap TEXT NOT NULL DEFAULT '',  -- JSON list[str]
-            order_index INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now','localtime'))
-        );
-        CREATE TABLE IF NOT EXISTS learn_videos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            language_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            author TEXT NOT NULL DEFAULT '',
-            embed TEXT NOT NULL,
-            order_index INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now','localtime')),
-            FOREIGN KEY (language_id) REFERENCES learn_languages(id) ON DELETE CASCADE
-        );
-        CREATE INDEX IF NOT EXISTS idx_lv_lang ON learn_videos(language_id);
-        """
-    )
+    db = connect()
+    db.executescript(PG_SCHEMA if is_postgres() else SQLITE_SCHEMA)
     db.commit()
     seed(db)
-    migrate_db(db)
+    if not is_postgres():
+        migrate_db(db)
     db.close()
 
 
@@ -907,7 +809,7 @@ def admin_students():
                     )
                     db.commit()
                     flash("学生已添加：%s %s" % (sid, name), "success")
-                except sqlite3.IntegrityError:
+                except IntegrityError:
                     flash("学号已存在：%s" % sid, "danger")
         elif action == "delete":
             uid = request.form.get("uid")
@@ -950,7 +852,7 @@ def import_students_csv(db, text):
                 (sid, name, generate_password_hash(pw), "student"),
             )
             added += 1
-        except sqlite3.IntegrityError:
+        except IntegrityError:
             skipped += 1
     return added, skipped
 
@@ -1182,7 +1084,7 @@ def admin_learn_language_add():
         )
         db.commit()
         flash("语言已添加：%s" % name, "success")
-    except sqlite3.IntegrityError:
+    except IntegrityError:
         flash("代码已存在：%s" % code, "danger")
     return redirect(url_for("admin_learn"))
 
