@@ -18,4 +18,4 @@ COPY . .
 
 # Render / 多数平台会注入 PORT 环境变量；本地运行回退到 5000
 EXPOSE 10000
-CMD ["sh", "-c", "waitress-serve --port=${PORT:-5000} --threads=8 app:app"]
+CMD ["sh", "-c", "waitress-serve --host=0.0.0.0 --port=${PORT:-5000} --threads=8 app:app"]
