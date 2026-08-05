@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{% if s %}编辑题目集{% else %}新建题目集{% endif %}{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin_sets') }}">← 题目集管理</a>
+<h1>{% if s %}编辑题目集：{{ s.title }}{% else %}新建题目集{% endif %}</h1>
+
+<div class="card">
+  <h3>基本信息</h3>
+  <form method="post" class="form">
+    <label>题目集名称
+      <input type="text" name="title" value="{{ s.title if s else '' }}" placeholder="例如：第3章 循环结构" required>
+    </label>
+    <label>描述（可选）
+      <textarea name="description" rows="2" placeholder="一句话说明本题目集的用途">{{ s.description if s else '' }}</textarea>
+    </label>
+
+    <h3 style="margin-top:8px;">选择题目（勾选即纳入本题集）</h3>
+    {% if all_problems %}
+    <div class="prob-picker">
+      {% for p in all_problems %}
+      <label class="pick {% if p.id in member_ids %}on{% endif %}">
+        <input type="checkbox" name="problem_ids" value="{{ p.id }}" {% if p.id in member_ids %}checked{% endif %}>
+        <span class="pick-title">{{ p.id }}. {{ p.title }}</span>
+        <span class="tag tag-{{ p.difficulty }}">{{ p.difficulty }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">暂无题目可供选择。请先在「题目管理」创建题目，或「导入题目」。</p>
+    {% endif %}
+
+    <div class="row-actions" style="margin-top:14px;">
+      <button type="submit">保存题目集</button>
+      {% if s %}
+      <form method="post" action="{{ url_for('admin_set_delete', sid=s.id) }}" onsubmit="return confirm('确定删除该题目集？题目本身保留。')" style="display:inline;">
+        <button class="link danger" type="submit">删除题目集</button>
+      </form>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+{% if stats %}
+<div class="section-title"><h2>整体完成情况</h2></div>
+<section class="dash">
+  <div class="dash-left">
+    <h1 class="dash-hi">整体完成度 {{ stats.overall }}%</h1>
+    <p class="muted">共 {{ stats.total }} 道题 · {{ stats.n_students }} 名学生参与</p>
+  </div>
+  <div class="dash-stats">
+    <div class="stat"><div class="num">{{ stats.total }}</div><div class="lbl">题目数</div></div>
+    <div class="stat"><div class="num">{{ stats.n_students }}</div><div class="lbl">参与学生</div></div>
+    <div class="stat"><div class="num">{{ stats.overall }}<span style="font-size:14px;">%</span></div><div class="lbl">平均完成度</div></div>
+  </div>
+</section>
+<div class="progress" title="整体完成度 {{ stats.overall }}%">
+  <div class="progress-bar" style="width:{{ stats.overall }}%"></div>
+</div>
+
+<div class="section-title"><h2>学生完成度排名</h2><span class="muted">{{ stats.ranking|length }} 人</span></div>
+<table class="table rank-table">
+  <thead><tr><th>排名</th><th>学号</th><th>姓名</th><th>已解决</th><th>完成度</th><th>进度</th></tr></thead>
+  <tbody>
+    {% for r in stats.ranking %}
+    <tr class="{% if loop.index0 < 3 %}top{{ loop.index0 + 1 }}{% endif %}">
+      <td class="rank">{% if loop.index0 == 0 %}🥇{% elif loop.index0 == 1 %}🥈{% elif loop.index0 == 2 %}🥉{% else %}{{ r.rank }}{% endif %}</td>
+      <td class="muted">{{ r.sid }}</td>
+      <td><strong>{{ r.name }}</strong></td>
+      <td>{{ r.solved }} / {{ r.total }}</td>
+      <td>{{ r.pct }}%</td>
+      <td>
+        <div class="mini-progress"><div class="mini-progress-bar" style="width:{{ r.pct }}%"></div></div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">暂无学生数据。</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

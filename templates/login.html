@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}登录{% endblock %}
+{% block content %}
+<div class="login-stage">
+  <!-- 视差景深层（鼠标移动产生 3D 纵深） -->
+  <div class="login-deco" aria-hidden="true">
+    <span class="deco-orb orb-a" data-depth="0.07"></span>
+    <span class="deco-orb orb-b" data-depth="0.11"></span>
+    <span class="deco-ring" data-depth="0.035"></span>
+    <span class="deco-line" data-depth="0.05"></span>
+  </div>
+
+  <div class="login-grid">
+    <!-- 左：流体巨幕标题 -->
+    <div class="login-hero">
+      <p class="hero-eyebrow" data-depth="0.02">FANTASY CODING ARENA</p>
+      <h1 class="display outline" data-depth="0.045">代码<br><span class="text-accent">即战场</span></h1>
+      <p class="hero-sub" data-depth="0.03">进入你的编程竞技场。<br>每一道题，都是一次与逻辑的短兵相接。</p>
+      <div class="hero-meta" data-depth="0.02">
+        <span>多语言在线判题</span><i>·</i><span>实时评测反馈</span><i>·</i><span>进度可视化</span>
+      </div>
+    </div>
+
+    <!-- 右：登录卡片 -->
+    <div class="login-wrap raise" data-depth="0.015">
+      <div class="lw-head">
+        <div class="logo">FCA</div>
+        <p class="lw-title">登 录</p>
+      </div>
+      <form method="post" class="form">
+        <label>学号
+          <input type="text" name="student_id" autocomplete="off" required placeholder="例如 2021001">
+        </label>
+        <label>姓名
+          <input type="text" name="name" autocomplete="off" required placeholder="例如 张三">
+        </label>
+        <label>密码
+          <input type="password" name="password" required placeholder="请输入密码">
+        </label>
+        <button type="submit" class="elastic">进 入 竞 技 场 <span class="arw">→</span></button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

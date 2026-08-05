@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}FCA · Fantasy Coding Arena{% endblock %}{% if self.title() != 'FCA · Fantasy Coding Arena' %} · FCA{% endif %}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ static_v.style }}">
+</head>
+<body>
+  <!-- 开屏预加载：烟雾溶解过场 -->
+  <div id="preloader" aria-hidden="true">
+    <div class="pk-mark">FCA</div>
+    <div class="pk-bar"><i></i></div>
+  </div>
+  <!-- 鼠标跟随软光晕 + 动态噪点 + 自定义光标 -->
+  <div id="glow" aria-hidden="true"></div>
+  <div id="noise" aria-hidden="true"></div>
+  <div id="cursor" aria-hidden="true"></div>
+  <div id="cursorDot" aria-hidden="true"></div>
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+  <!-- 提交判题时的「正在测评」指示层；默认 hidden（防御性：即使 CSS 丢失也不会露在文档流中） -->
+  <div id="judging" class="judging" hidden aria-hidden="true">
+    <div class="judging-card">
+      <div class="ring"></div>
+      <p class="judging-title">正在测评…</p>
+    </div>
+  </div>
+  <header class="topbar" id="topbar">
+    <div class="brand">
+      <span class="logo">FCA</span>
+      <span class="brand-sub">Fantasy Coding Arena</span>
+    </div>
+    <button class="nav-toggle" id="navToggle" aria-label="菜单" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    {% if current_user %}
+    <nav class="nav" id="nav">
+      {% set ep = request.endpoint %}
+      {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('admin_dashboard') }}" class="{% if ep == 'admin_dashboard' %}active{% endif %}">管理首页</a>
+        <a href="{{ url_for('admin_sets') }}" class="{% if ep in ('admin_sets','admin_set_edit') %}active{% endif %}">题目集</a>
+        <a href="{{ url_for('admin_problems') }}" class="{% if ep in ('admin_problems','problem') %}active{% endif %}">题目管理</a>
+        <a href="{{ url_for('admin_students') }}" class="{% if ep == 'admin_students' %}active{% endif %}">学生管理</a>
+        <a href="{{ url_for('admin_import') }}" class="{% if ep == 'admin_import' %}active{% endif %}">导入题目</a>
+        <a href="{{ url_for('admin_submissions') }}" class="{% if ep == 'admin_submissions' %}active{% endif %}">全部提交</a>
+        <a href="{{ url_for('admin_learn') }}" class="{% if ep == 'admin_learn' %}active{% endif %}">学习中心</a>
+      {% else %}
+        <a href="{{ url_for('problems') }}" class="{% if ep in ('problems','problem') %}active{% endif %}">题目列表</a>
+        <a href="{{ url_for('sets') }}" class="{% if ep in ('sets','set_detail') %}active{% endif %}">题目集</a>
+        <a href="{{ url_for('learn') }}" class="{% if ep == 'learn' %}active{% endif %}">学习中心</a>
+        <a href="{{ url_for('my_submissions') }}" class="{% if ep in ('my_submissions','submission') %}active{% endif %}">我的提交</a>
+      {% endif %}
+      <span class="who">{{ current_user.name }}（{{ current_user.student_id }}）</span>
+      <a href="{{ url_for('logout') }}" class="logout">退出</a>
+    </nav>
+    {% endif %}
+  </header>
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    © 2026 Fantasy Coding Arena. All rights reserved.
+  </footer>
+  <script>
+    (function () {
+      var topbar = document.getElementById('topbar');
+      var toggle = document.getElementById('navToggle');
+      var nav = document.getElementById('nav');
+      if (toggle && nav) {
+        toggle.addEventListener('click', function () {
+          var open = topbar.classList.toggle('open');
+          toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        nav.addEventListener('click', function (e) {
+          if (e.target.closest('a')) topbar.classList.remove('open');
+        });
+      }
+      var bar = document.getElementById('scrollProgress');
+      if (bar) {
+        var ticking = false;
+        window.addEventListener('scroll', function () {
+          if (ticking) return;
+          ticking = true;
+          requestAnimationFrame(function () {
+            var h = document.documentElement;
+            var max = h.scrollHeight - h.clientHeight;
+            var pct = max > 0 ? (h.scrollTop / max) * 100 : 0;
+            bar.style.width = pct + '%';
+            ticking = false;
+          });
+        }, { passive: true });
+      }
+    })();
+  </script>
+  <script src="{{ url_for('static', filename='app.js') }}?v={{ static_v.appjs }}" defer></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}全部提交{% endblock %}
+{% block content %}
+<h1>全部提交</h1>
+<table class="table">
+  <thead><tr><th>学生</th><th>学号</th><th>题目</th><th>语言</th><th>结果</th><th>通过</th><th>时间</th><th></th></tr></thead>
+  <tbody>
+    {% for s in subs %}
+    <tr>
+      <td>{{ s.uname }}</td>
+      <td class="muted">{{ s.usid }}</td>
+      <td>{{ s.ptitle }}</td>
+      <td>{{ s.language }}</td>
+      <td><span class="badge status-{{ s.status }}">{{ s.status }}</span></td>
+      <td>{{ s.passed }}/{{ s.total }}</td>
+      <td class="muted">{{ s.submitted_at }}</td>
+      <td><a href="{{ url_for('submission', sid=s.id) }}">查看</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="muted">暂无提交。</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

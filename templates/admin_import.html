@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}导入题目{% endblock %}
+{% block content %}
+<h1>导入题目</h1>
+
+<div class="tips">
+  <b>两种导入方式（任选其一）</b>
+  <ol>
+    <li><b>下载模板</b> → 按格式填好题目和测试用例 → 上传 JSON 文件。</li>
+    <li>直接把 JSON 内容粘贴到下方文本框 → 点「导入」。</li>
+  </ol>
+  <p class="muted" style="margin:6px 0 0">
+    想从 PTA（拼题 A）题目集批量搬题？可用项目里的 <code>pta_import.py</code> 自动抓取，
+    生成的就是这种 JSON，导入即可（详见脚本内说明；PTA 的隐藏测试点不会公开，需你自行补全）。
+  </p>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <div class="row-between">
+    <h3 style="margin:0;">① 下载模板（先看看格式）</h3>
+    <a class="btn" href="{{ url_for('admin_download_sample') }}">下载 sample_problems.json</a>
+  </div>
+  <pre class="desc">[
+  {
+    "title": "A+B 问题",
+    "description": "读入两个整数 a b，输出 a+b。",
+    "difficulty": "简单",
+    "time_limit_ms": 2000,
+    "memory_limit_mb": 256,
+    "allowed_languages": ["c", "cpp", "py"],
+    "default_language": "c",
+    "tests": [
+      {"input": "1 2", "expected": "3", "is_sample": true},
+      {"input": "100 200", "expected": "300", "is_sample": false}
+    ]
+  }
+]</pre>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="form wide" style="margin-top:16px;">
+  <h3>② 上传 JSON 文件</h3>
+  <input type="file" name="file" accept=".json">
+  <h3>② 或直接粘贴 JSON 内容</h3>
+  <textarea name="json_text" rows="8" placeholder='把题目 JSON 粘贴到这里…'
+            style="font-family:Consolas,monospace;width:100%;"></textarea>
+  <div class="row-actions">
+    <button type="submit">导入</button>
+  </div>
+</form>
+{% endblock %}

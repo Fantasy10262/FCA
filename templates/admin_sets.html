@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}题目集管理{% endblock %}
+{% block content %}
+<div class="row-between">
+  <h1>题目集管理</h1>
+  <a class="btn" href="{{ url_for('admin_set_edit') }}">+ 新建题目集</a>
+</div>
+<p class="muted">以题目集为单位组织学生作答：创建题目集并勾选若干题目，系统自动统计整体完成度与学生排名。</p>
+
+<table class="table">
+  <thead><tr><th>ID</th><th>名称</th><th>描述</th><th>题数</th><th>整体完成度</th><th>参与学生</th><th>操作</th></tr></thead>
+  <tbody>
+    {% for s in sets %}
+    <tr>
+      <td>{{ s.id }}</td>
+      <td><a href="{{ url_for('admin_set_edit', sid=s.id) }}"><strong>{{ s.title }}</strong></a></td>
+      <td class="muted">{{ s.description or '—' }}</td>
+      <td>{{ s.total }}</td>
+      <td>
+        <div class="mini-progress">
+          <div class="mini-progress-bar" style="width:{{ s.overall }}%"></div>
+        </div>
+        <span class="muted">{{ s.overall }}%</span>
+      </td>
+      <td class="muted">{{ s.n_students }}</td>
+      <td class="ops">
+        <a href="{{ url_for('admin_set_edit', sid=s.id) }}">编辑</a>
+        <form method="post" action="{{ url_for('admin_set_delete', sid=s.id) }}" onsubmit="return confirm('确定删除该题目集？其下的题目不会被删除，仅解除归属。')">
+          <button class="link danger">删除</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted">暂无题目集。点击右上角「新建题目集」，先导入或创建题目后在此勾选即可。</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

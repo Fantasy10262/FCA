@@ -1,0 +1,17 @@
+# 不要打进 Docker 镜像的内容（安全 + 减小镜像）
+# 本地记忆/工作区，可能含明文密码，严禁进镜像
+.workbuddy/
+# SQLite 数据库（含账号/提交），运行时由 init_db 自建，绝不烘焙
+data/
+__pycache__/
+*.pyc
+*.log
+venv/
+.env
+flask_run.log
+students_template.csv
+sample_problems.json
+run.bat
+部署指南.md
+.git/
+.gitignore

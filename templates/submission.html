@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}提交结果{% endblock %}
+{% block content %}
+<a class="btn ghost sm" href="{{ url_for('problem', pid=sub.problem_id) }}">← 返回题目（继续修改）</a>
+<h1 style="margin-top:14px;">提交结果：{{ sub.ptitle }}</h1>
+
+<div class="result-head">
+  <span class="badge status-{{ sub.status }}">{{ sub.status }}</span>
+  <span class="big">{{ sub.passed }} / {{ sub.total }} 测试点通过</span>
+  <span class="meta">语言 {{ lang_names.get(sub.language, sub.language) }} ｜ 最长时间 {{ sub.max_runtime_ms if sub.max_runtime_ms is not none else '—' }} ms ｜ {{ sub.submitted_at }}</span>
+</div>
+
+<div class="stat-row">
+  <div class="stat"><div class="num">{{ sub.passed }}/{{ sub.total }}</div><div class="lbl">测试点通过</div></div>
+  <div class="stat"><div class="num">{{ lang_names.get(sub.language, sub.language) }}</div><div class="lbl">提交语言</div></div>
+  <div class="stat"><div class="num">{{ sub.max_runtime_ms if sub.max_runtime_ms is not none else '—' }}<span style="font-size:13px;">ms</span></div><div class="lbl">最长运行时间</div></div>
+  {% set sc = result.get('score') %}
+  {% if sc is not none %}
+  <div class="stat"><div class="num">{{ sc }}/{{ result.get('max_score') }}</div><div class="lbl">本题得分</div></div>
+  {% endif %}
+</div>
+
+{% if sub.status == 'CE' and sub.compile_error %}
+  <h3>编译错误</h3>
+  <pre class="err">{{ sub.compile_error }}</pre>
+{% endif %}
+
+<h3>你提交的代码</h3>
+<div class="code-panel">
+  <div class="cp-bar">
+    <span class="cp-name"><span class="cp-dot"></span>{{ lang_names.get(sub.language, sub.language) }} · solution.{{ 'c' if sub.language=='c' else ('cpp' if sub.language=='cpp' else 'py') }}</span>
+    <span class="cp-time">提交于 {{ sub.submitted_at }}</span>
+    <button class="cp-copy" id="copyBtn" type="button">复制</button>
+  </div>
+  <pre id="code-fallback">{{ sub.code }}</pre>
+  <div id="sub-editor" class="monaco-box" style="height:480px"></div>
+</div>
+
+<h3>测试点明细</h3>
+<table class="table">
+  <thead><tr><th>测试点</th><th>分值</th><th>结果</th><th>用例通过</th><th>用时</th><th>说明</th></tr></thead>
+  <tbody>
+    {% for pt in result.get('points', []) %}
+    <tr>
+      <td>{{ pt.name }}</td>
+      <td>{{ pt.score }}</td>
+      <td><span class="badge status-{{ pt.status }}">{{ pt.status }}</span></td>
+      <td>{{ pt.passed_cases }} / {{ pt.total_cases }}</td>
+      <td>{{ pt.runtime_ms if pt.runtime_ms is not none else '—' }}</td>
+      <td class="muted">{{ pt.error }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">无测试点明细。</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script src="{{ url_for('static', filename='vendor/monaco/vs/loader.js') }}"></script>
+<script>
+  var MONACO_BASE = "{{ url_for('static', filename='vendor/monaco/vs') }}";
+  var SUB_CODE = {{ sub.code | tojson }};
+  var SUB_LANG = "{{ 'c' if sub.language=='c' else ('cpp' if sub.language=='cpp' else 'py') }}";
+  var MONACO_LANG = { c: 'c', cpp: 'cpp', py: 'python' };
+
+  window.MonacoEnvironment = {
+    getWorkerUrl: function (_, label) {
+      return 'data:text/javascript;charset=utf-8,' + encodeURIComponent(
+        'self.MonacoEnvironment={baseUrl:"' + location.origin + MONACO_BASE + '"};' +
+        'importScripts("' + location.origin + MONACO_BASE + '/base/worker/workerMain.js");'
+      );
+    }
+  };
+  require.config({ paths: { vs: MONACO_BASE } });
+  require(['vs/editor/editor.main'], function () {
+    monaco.editor.defineTheme('fca-dark', {
+      base: 'vs-dark', inherit: true,
+      rules: [
+        { token: 'comment', foreground: '7C756A', fontStyle: 'italic' },
+        { token: 'keyword', foreground: '34D399' },
+        { token: 'string', foreground: '2DD4BF' },
+        { token: 'number', foreground: 'C3BBAD' },
+        { token: 'type', foreground: '2DD4BF' },
+        { token: 'function', foreground: '2DD4BF' },
+        { token: 'variable', foreground: 'ECE7DF' },
+        { token: 'operator', foreground: 'C3BBAD' }
+      ],
+      colors: {
+        'editor.background': '#0B0B0B',
+        'editor.foreground': '#ECE7DF',
+        'editorLineNumber.foreground': '#7C756A',
+        'editorLineNumber.activeForeground': '#34D399',
+        'editor.selectionBackground': '#34D39933',
+        'editor.lineHighlightBackground': '#ffffff08',
+        'editorCursor.foreground': '#34D399',
+        'editorIndentGuide.background': '#ffffff10',
+        'editorWidget.background': '#141414',
+        'editorGutter.background': '#0B0B0B'
+      }
+    });
+    monaco.editor.create(document.getElementById('sub-editor'), {
+      value: SUB_CODE,
+      language: MONACO_LANG[SUB_LANG] || 'c',
+      theme: 'fca-dark',
+      readOnly: true,
+      automaticLayout: true,
+      fontSize: 14,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      renderWhitespace: 'none',
+      fontFamily: 'Consolas, "Cascadia Code", "Courier New", monospace',
+      lineNumbersMinChars: 3
+    });
+    var fb = document.getElementById('code-fallback');
+    if (fb) fb.style.display = 'none';
+    var btn = document.getElementById('copyBtn');
+    if (btn) btn.addEventListener('click', function () {
+      navigator.clipboard.writeText(SUB_CODE).then(function () {
+        btn.textContent = '已复制';
+        setTimeout(function () { btn.textContent = '复制'; }, 1500);
+      }).catch(function () {
+        if (fb) { fb.style.display = 'block'; navclip(fb.textContent); }
+      });
+    });
+    function navclip(t) {
+      try { navigator.clipboard.writeText(t); } catch (e) {}
+    }
+  });
+</script>
+{% endblock %}

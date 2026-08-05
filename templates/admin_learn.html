@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}学习中心管理{% endblock %}
+{% block content %}
+<div class="section-title">
+  <h1>学习中心</h1>
+  <p class="muted">学生端「学习中心」的语言方向与教学视频均在此处配置。修改后立即生效。</p>
+</div>
+
+<style>
+  .ln-card { padding: 22px 24px; margin-bottom: 22px; }
+  .ln-card h2 { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .ln-card h2 .tag { font-size: 11.5px; padding: 3px 10px; }
+  .ln-card h2 .code { color: var(--muted); font-size: 12px; font-weight: 600; font-family: var(--mono); }
+  .ln-form { display: grid; gap: 12px; grid-template-columns: 1fr; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line-strong); }
+  .ln-form.two { grid-template-columns: 1fr 1fr; }
+  .ln-form textarea { min-height: 70px; }
+  .vid-row { display: grid; grid-template-columns: 1.4fr 1fr 2fr auto auto; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .vid-row:last-child { border-bottom: none; }
+  .vid-row input { padding: 8px 10px; }
+  .vid-row .ops form { display: inline; }
+  .ln-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .ln-add { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.01)), var(--surface);
+            border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; margin-bottom: 24px; }
+  .ln-add h2 { margin-top: 0; }
+  .vid-empty { color: var(--muted); font-style: italic; padding: 8px 0; }
+  @media (max-width: 760px) {
+    .ln-form.two { grid-template-columns: 1fr; }
+    .vid-row { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="ln-add">
+  <h2>添加新语言</h2>
+  <form method="post" action="{{ url_for('admin_learn_language_add') }}" class="form wide">
+    <div class="two-col" style="gap: 14px;">
+      <label>代码（英文短码，如 c / cpp / python / go）<input type="text" name="code" required maxlength="32" placeholder="go"></label>
+      <label>显示名称<input type="text" name="name" required maxlength="64" placeholder="Go 语言"></label>
+    </div>
+    <div class="two-col" style="gap: 14px;">
+      <label>标签（可选）<input type="text" name="tag" maxlength="64" placeholder="高并发·云原生首选"></label>
+      <label>简介（支持换行）<textarea name="intro" rows="3" placeholder="一两段话介绍这门语言适合谁、能做什么。"></textarea></label>
+    </div>
+    <label>学习路线（每行一步）<textarea name="roadmap" rows="6" placeholder="环境搭建&#10;基础语法&#10;函数与模块&#10;面向对象&#10;..."></textarea></label>
+    <div class="row-actions">
+      <button type="submit">添加语言</button>
+      <span class="muted">添加后即可在右侧为其添加教学视频。</span>
+    </div>
+  </form>
+</div>
+
+{% for ll in langs %}
+  <div class="card ln-card">
+    <h2>
+      <span>{{ ll.name }}</span>
+      {% if ll.tag %}<span class="tag tag-soft">{{ ll.tag }}</span>{% endif %}
+      <span class="code">{{ ll.code }} · #{{ ll.id }}</span>
+    </h2>
+    <p class="muted" style="white-space: pre-line; margin: 6px 0 4px;">{{ ll.intro }}</p>
+
+    <details style="margin-top: 10px;">
+      <summary class="muted" style="cursor: pointer; font-weight: 600;">编辑这门语言（名称/标签/简介/路线）</summary>
+      <form method="post" action="{{ url_for('admin_learn_language_edit', lid=ll.id) }}" class="ln-form two">
+        <label>名称<input type="text" name="name" value="{{ ll.name }}" required></label>
+        <label>标签<input type="text" name="tag" value="{{ ll.tag }}"></label>
+        <label style="grid-column: 1/-1;">简介<textarea name="intro" rows="3">{{ ll.intro }}</textarea></label>
+        <label style="grid-column: 1/-1;">学习路线（每行一步）<textarea name="roadmap" rows="6">{% for r in ll.roadmap %}{{ r }}
+{% endfor %}</textarea></label>
+        <div class="ln-actions" style="grid-column: 1/-1;">
+          <button type="submit">保存</button>
+        </div>
+      </form>
+    </details>
+
+    <h3 style="margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line);">教学视频（{{ ll.videos|length }}）</h3>
+    {% if ll.videos %}
+      <form method="post" action="{{ url_for('admin_learn_video_edit', vid=ll.videos[0].id) }}" id="vid-form-{{ ll.id }}"></form>
+      {% for v in ll.videos %}
+        <form method="post" action="{{ url_for('admin_learn_video_edit', vid=v.id) }}" class="vid-row">
+          <input type="text" name="title" value="{{ v.title }}" required placeholder="视频标题">
+          <input type="text" name="author" value="{{ v.author }}" placeholder="作者/出处">
+          <input type="text" name="embed" value="{{ v.embed }}" required placeholder="https://player.bilibili.com/player.html?bvid=…&page=1">
+          <button type="submit" class="ghost sm">保存</button>
+          <button type="submit" class="danger sm" formaction="{{ url_for('admin_learn_video_delete', vid=v.id) }}"
+                  onclick="return confirm('确认删除该视频？')">删除</button>
+        </form>
+      {% endfor %}
+    {% else %}
+      <p class="vid-empty">这门语言还没有视频，下方添加。</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('admin_learn_video_add') }}" class="ln-form two" style="margin-top: 12px;">
+      <input type="hidden" name="language_id" value="{{ ll.id }}">
+      <label style="grid-column: 1/-1;">新视频标题<input type="text" name="title" required placeholder="如：XX 老师 YY 课程（入门到精通）"></label>
+      <label>作者 / 出处<input type="text" name="author" placeholder="如：黑马程序员 / 翁恺 @ 浙大"></label>
+      <label>嵌入地址（iframe src）<input type="text" name="embed" required placeholder="https://player.bilibili.com/player.html?bvid=BV…&page=1&high_quality=1&danmaku=0"></label>
+      <div class="ln-actions" style="grid-column: 1/-1;">
+        <button type="submit">添加视频</button>
+        <span class="muted">支持 B 站/YouTube/任何 iframe 可嵌入的地址；保存后学生端点击缩略图才会真正加载。</span>
+      </div>
+    </form>
+
+    <form method="post" action="{{ url_for('admin_learn_language_delete', lid=ll.id) }}" style="margin-top: 14px;"
+          onsubmit="return confirm('确认删除「{{ ll.name }}」及其所有视频？此操作不可撤销。');">
+      <button type="submit" class="danger sm">删除这门语言（含其下视频）</button>
+    </form>
+  </div>
+{% endfor %}
+
+{% if not langs %}
+  <div class="empty">
+    <div class="empty-ico">📚</div>
+    <p>学习中心还没有任何语言，使用上方「添加新语言」开始。</p>
+  </div>
+{% endif %}
+
+{% endblock %}

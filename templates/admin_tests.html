@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}测试用例管理{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin_problems') }}">← 题目管理</a>
+<h1>测试用例：{{ problem.title }}</h1>
+<p class="muted">测试点是<strong>计分单元</strong>：一个测试点包含若干测试用例，只有该点下<strong>全部用例通过</strong>，才算拿下这个测试点（拿满分值）。</p>
+
+<div class="card">
+  <h3>新建测试点</h3>
+  <form method="post" class="form wide">
+    <input type="hidden" name="action" value="add_point">
+    <div class="row-actions" style="align-items:flex-end;">
+      <label style="min-width:220px;">名称
+        <input type="text" name="name" value="测试点">
+      </label>
+      <label style="max-width:120px;">分值
+        <input type="number" name="score" value="1" min="1">
+      </label>
+      <button type="submit">+ 新建测试点</button>
+    </div>
+  </form>
+</div>
+
+{% for pt in points %}
+<div class="card point-card">
+  <div class="pc-head">
+    <form method="post" class="pc-edit">
+      <input type="hidden" name="action" value="edit_point">
+      <input type="hidden" name="tid" value="{{ pt.id }}">
+      <input class="pc-name" type="text" name="name" value="{{ pt.name }}">
+      <label class="pc-score">分值
+        <input type="number" name="score" value="{{ pt.score }}" min="1">
+      </label>
+      <button class="sm" type="submit">保存</button>
+    </form>
+    <form method="post" onsubmit="return confirm('删除该测试点及其下所有用例？')">
+      <input type="hidden" name="action" value="delete_point">
+      <input type="hidden" name="tid" value="{{ pt.id }}">
+      <button class="link danger sm" type="submit">删除测试点</button>
+    </form>
+  </div>
+
+  <table class="table tight">
+    <thead><tr><th style="width:80px;">类型</th><th>输入</th><th>期望输出</th><th style="width:80px;">操作</th></tr></thead>
+    <tbody>
+      {% for c in cases if c.point_id == pt.id %}
+      <tr>
+        <td>{% if c.is_sample %}样例{% else %}隐藏{% endif %}</td>
+        <td><pre class="mini">{{ c.input_text }}</pre></td>
+        <td><pre class="mini">{{ c.expected_text }}</pre></td>
+        <td>
+          <form method="post" onsubmit="return confirm('删除该用例？')">
+            <input type="hidden" name="action" value="delete_case">
+            <input type="hidden" name="cid" value="{{ c.id }}">
+            <button class="link danger sm">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">该测试点暂无用例（请至少在下方添加一个）。</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" class="form wide pc-add">
+    <input type="hidden" name="action" value="add_case">
+    <input type="hidden" name="tid" value="{{ pt.id }}">
+    <div class="row-actions" style="align-items:flex-end;">
+      <label class="grow">输入
+        <textarea name="input_text" rows="2" placeholder="程序的标准输入"></textarea>
+      </label>
+      <label class="grow">期望输出
+        <textarea name="expected_text" rows="2" placeholder="标准答案（按行比对，忽略行尾空白）"></textarea>
+      </label>
+      <label class="inline"><input type="checkbox" name="is_sample" value="1"> 作为样例</label>
+      <button class="sm" type="submit">+ 加用例</button>
+    </div>
+  </form>
+</div>
+{% else %}
+<div class="empty">暂无测试点，请先在上方新建一个测试点并添加用例。</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}{{ problem.title }}{% endblock %}
+{% block content %}
+<div class="pb-head" data-depth="0.02">
+  <h1 class="ptitle">{{ problem.title }}
+    <span class="tag tag-{{ problem.difficulty }}">{{ problem.difficulty }}</span>
+  </h1>
+</div>
+{% set npts = problem.points|length %}
+{% set nsamp = problem.tests|selectattr('is_sample')|list|length %}
+<div class="meta-line">时间限制 {{ problem.time_limit_ms }} ms ｜ 内存限制 {{ problem.memory_limit_mb }} MB ｜ 共 {{ npts }} 个测试点（{{ nsamp }} 个公开样例）</div>
+
+<div class="two-col">
+  <section class="card">
+    <h3>题目描述</h3>
+    <pre class="desc">{{ problem.description }}</pre>
+
+    <h3>样例（仅供练习，判题含隐藏测试点）</h3>
+    {% for t in problem.tests if t.is_sample %}
+      <div class="sample">
+        <div><b>输入</b><pre class="mini">{{ t.input_text }}</pre></div>
+        <div><b>输出</b><pre class="mini">{{ t.expected_text }}</pre></div>
+      </div>
+    {% else %}
+      <p class="muted">本题无样例。</p>
+    {% endfor %}
+
+    <div class="tips">
+      <b>判题说明</b>：本题共 <b>{{ npts }}</b> 个测试点，其中 <b>{{ nsamp }}</b> 个为公开样例（仅供练习、不计分）。
+      提交后按<strong>测试点</strong>判分——每个测试点包含若干用例，只有该点下<strong>全部用例通过</strong>才算拿到该测试点。
+    </div>
+  </section>
+
+  <section class="card">
+    {% if last_sub %}
+    <div class="lastsub">
+      <div class="ls-head">
+        <span class="ls-title">上次提交</span>
+        <span class="badge status-{{ last_sub.status }}">{{ last_sub.status }}</span>
+        <span class="muted">{{ last_sub.passed }} / {{ last_sub.total }} 通过</span>
+      </div>
+      <div class="ls-meta">语言 {{ lang_names.get(last_sub.language, last_sub.language) }} ｜ {{ last_sub.submitted_at }}</div>
+      <div class="ls-note">下方编辑器已填入你上次提交的代码，可直接在此基础上修改后重新提交。</div>
+    </div>
+    {% endif %}
+
+    <form method="post" id="submit-form">
+      <label>提交语言
+        <select name="language" id="lang">
+          {% for lang in problem.allowed_languages %}
+            <option value="{{ lang }}" {% if lang == default_lang %}selected{% endif %}>
+              {{ lang_names[lang] }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      {% set missing = [] %}
+      {% for lang in problem.allowed_languages %}
+        {% if not available_langs.get(lang) %}{{ missing.append(lang_names[lang]) or "" }}{% endif %}
+      {% endfor %}
+      {% if missing %}
+      <p class="warn">⚠ 以下语言本机未安装编译器，暂无法判题：{{ missing|join("、") }}。请先安装 MinGW-w64(gcc/g++)。</p>
+      {% endif %}
+
+      <div class="editor-label">
+        <span>代码编辑器</span>
+        <span class="hint">语法高亮 · 行号 · 自动缩进 · Tab 缩进</span>
+      </div>
+      <div id="editor" class="monaco-box"></div>
+      <textarea name="code" id="code" style="display:none"></textarea>
+
+      <div class="row-actions" style="margin-top:14px;">
+        <button type="submit">提交判题</button>
+        <a class="btn ghost sm" href="{{ url_for('my_submissions') }}">我的提交记录</a>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/monaco/vs/loader.js') }}"></script>
+<script>
+  var MONACO_BASE = "{{ url_for('static', filename='vendor/monaco/vs') }}";
+  var DEFAULT_LANG = "{{ default_lang }}";
+  var INITIAL_CODE = {{ (code if code else '') | tojson }};
+
+  var TEMPLATES = {
+    c:   '#include <stdio.h>\n\nint main() {\n    \n    return 0;\n}\n',
+    cpp: '#include <iostream>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n',
+    py:  ''
+  };
+  var MONACO_LANG = { c: 'c', cpp: 'cpp', py: 'python' };
+
+  function tpl(lang) { return TEMPLATES[lang] || ''; }
+
+  window.MonacoEnvironment = {
+    getWorkerUrl: function (_, label) {
+      return 'data:text/javascript;charset=utf-8,' + encodeURIComponent(
+        'self.MonacoEnvironment={baseUrl:"' + location.origin + MONACO_BASE + '"};' +
+        'importScripts("' + location.origin + MONACO_BASE + '/base/worker/workerMain.js");'
+      );
+    }
+  };
+
+  require.config({ paths: { vs: MONACO_BASE } });
+  require(['vs/editor/editor.main'], function () {
+    monaco.editor.defineTheme('fca-dark', {
+      base: 'vs-dark', inherit: true,
+      rules: [
+        { token: 'comment', foreground: '7C756A', fontStyle: 'italic' },
+        { token: 'keyword', foreground: '34D399' },
+        { token: 'string', foreground: '2DD4BF' },
+        { token: 'number', foreground: 'C3BBAD' },
+        { token: 'type', foreground: '2DD4BF' },
+        { token: 'function', foreground: '2DD4BF' },
+        { token: 'variable', foreground: 'ECE7DF' },
+        { token: 'operator', foreground: 'C3BBAD' }
+      ],
+      colors: {
+        'editor.background': '#0B0B0B',
+        'editor.foreground': '#ECE7DF',
+        'editorLineNumber.foreground': '#7C756A',
+        'editorLineNumber.activeForeground': '#34D399',
+        'editor.selectionBackground': '#34D39933',
+        'editor.lineHighlightBackground': '#ffffff08',
+        'editorCursor.foreground': '#34D399',
+        'editorIndentGuide.background': '#ffffff10',
+        'editorWidget.background': '#141414',
+        'editorGutter.background': '#0B0B0B'
+      }
+    });
+    var editor = monaco.editor.create(document.getElementById('editor'), {
+      value: INITIAL_CODE || tpl(DEFAULT_LANG),
+      language: MONACO_LANG[DEFAULT_LANG] || 'c',
+      theme: 'fca-dark',
+      automaticLayout: true,
+      fontSize: 14,
+      minimap: { enabled: true },
+      tabSize: 4,
+      insertSpaces: true,
+      scrollBeyondLastLine: false,
+      renderWhitespace: 'selection',
+      fontFamily: 'Consolas, "Cascadia Code", "Courier New", monospace'
+    });
+
+    // 切换语言：仅切换高亮，不清除已填代码（便于"接着上次答案写"）
+    var langSel = document.getElementById('lang');
+    langSel.addEventListener('change', function () {
+      var v = langSel.value;
+      monaco.editor.setModelLanguage(editor.getModel(), MONACO_LANG[v] || 'c');
+    });
+
+    document.getElementById('submit-form').addEventListener('submit', function () {
+      document.getElementById('code').value = editor.getValue();
+      if (window.showJudging) window.showJudging();
+    });
+  });
+</script>
+{% endblock %}

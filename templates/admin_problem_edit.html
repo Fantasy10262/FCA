@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{% if problem %}编辑题目{% else %}新增题目{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if problem %}编辑题目 #{{ problem.id }}{% else %}新增题目{% endif %}</h1>
+<form method="post" class="form wide">
+  <label>标题
+    <input type="text" name="title" value="{{ problem.title if problem else '' }}" required>
+  </label>
+  <label>难度
+    <select name="difficulty">
+      {% for d in ['简单','中等','困难'] %}
+        <option value="{{ d }}" {% if problem and problem.difficulty==d %}selected{% endif %}>{{ d }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>时间限制(ms)
+    <input type="number" name="time_limit_ms" value="{{ problem.time_limit_ms if problem else 2000 }}">
+  </label>
+  <label>内存限制(MB)
+    <input type="number" name="memory_limit_mb" value="{{ problem.memory_limit_mb if problem else 256 }}">
+  </label>
+  <label class="full">题目描述（支持纯文本，换行保留）
+    <textarea name="description" rows="6">{{ problem.description if problem else '' }}</textarea>
+  </label>
+  <fieldset class="full">
+    <legend>允许的语言</legend>
+    {% for key, name in lang_names.items() %}
+      <label class="inline">
+        <input type="checkbox" name="allowed_languages" value="{{ key }}"
+          {% if not problem or key in problem.allowed_languages %}checked{% endif %}>
+        {{ name }}
+      </label>
+    {% endfor %}
+  </fieldset>
+  <label>默认提交语言
+    <select name="default_language">
+      {% for key, name in lang_names.items() %}
+        <option value="{{ key }}" {% if problem and problem.default_language==key %}selected{% endif %}>{{ name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <div class="full row-actions">
+    <button type="submit">保存</button>
+    <a class="btn" href="{{ url_for('admin_problems') }}">返回</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}管理首页{% endblock %}
+{% block content %}
+<h1>管理首页</h1>
+<div class="cards">
+  <div class="stat"><div class="num">{{ n_students }}</div><div>学生数</div></div>
+  <div class="stat"><div class="num">{{ n_problems }}</div><div>题目数</div></div>
+  <div class="stat"><div class="num">{{ n_subs }}</div><div>提交数</div></div>
+</div>
+<div class="tips">
+  <h3>快速开始</h3>
+  <ol>
+    <li>在「学生管理」用 CSV 批量导入学生（格式：<code>学号,姓名,密码</code>）。</li>
+    <li>在「题目管理」新增题目；在题目详情里管理测试用例。</li>
+    <li>或用「导入题目」一次性上传 JSON 格式的多道题目（见页面说明）。</li>
+    <li>确认本机已安装 gcc/g++（C/C++ 判题需要）；Python 默认可用。</li>
+  </ol>
+</div>
+{% endblock %}

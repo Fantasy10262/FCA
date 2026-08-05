@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}学习中心{% endblock %}
+{% block content %}
+<div class="learn-hero reveal-item">
+  <h1>学习<span class="text-accent">中心</span></h1>
+  <p>选择一门语言，循序渐进；配套教学视频带你从零上手。</p>
+</div>
+
+{% for lang in langs %}
+<section class="card learn-lang reveal-item" id="{{ lang.key }}">
+  <div class="ll-head">
+    <span class="ll-name">{{ lang.name }}</span>
+    <span class="ll-tag">{{ lang.tag }}</span>
+  </div>
+  <p class="ll-intro">{{ lang.intro }}</p>
+
+  <h3>学习路线</h3>
+  <ol class="roadmap">
+    {% for step in lang.roadmap %}
+    <li>{{ step }}</li>
+    {% endfor %}
+  </ol>
+
+  <h3>教学视频</h3>
+  <div class="vid-grid">
+    {% for v in lang.videos %}
+    <div class="vid" data-embed="{{ v.embed }}" data-cursor>
+      <div class="vid-thumb">
+        <button class="vid-play" type="button" aria-label="播放：{{ v.title }}">▶</button>
+      </div>
+      <div class="vid-meta">
+        <p class="vid-title">{{ v.title }}</p>
+        <p class="vid-author">{{ v.author }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+<script>
+  document.querySelectorAll('.vid').forEach(function (card) {
+    card.addEventListener('click', function () {
+      if (card.dataset.loaded) return;
+      var thumb = card.querySelector('.vid-thumb');
+      var iframe = document.createElement('iframe');
+      iframe.setAttribute('src', card.dataset.embed);
+      iframe.setAttribute('frameborder', '0');
+      iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
+      iframe.setAttribute('allowfullscreen', 'true');
+      iframe.className = 'vid-frame';
+      thumb.innerHTML = '';
+      thumb.appendChild(iframe);
+      card.dataset.loaded = '1';
+    });
+  });
+</script>
+{% endblock %}

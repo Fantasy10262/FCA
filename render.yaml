@@ -1,0 +1,17 @@
+# Render Blueprint 配置（免费版）
+# 用法：Render 控制台 → New → Blueprint → 选择本仓库，即可按此自动创建免费 Web Service。
+# 也可 New → Web Service → 连接仓库 → Environment 选 Docker → Plan 选 Free。
+services:
+  - type: web
+    name: fantasy-coding-arena
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      # 会话密钥：交给 Render 自动生成随机值，切勿硬编码明文
+      - key: OJ_SECRET
+        generateValue: true
+      # 让 Python 日志实时刷出（便于在 Render 日志里看判题/语言探测输出）
+      - key: PYTHONUNBUFFERED
+        value: "1"

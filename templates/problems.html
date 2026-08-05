@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}题目列表{% endblock %}
+{% block content %}
+
+<section class="dash hero">
+  <div class="dash-left">
+    <p class="hero-eyebrow">欢迎回来</p>
+    <h1 class="dash-hi gradient-text">你好，{{ current_user.name }} <span class="wave">👋</span></h1>
+    <p class="muted">在 Fantasy Coding Arena 挑一道题，开启你的编程挑战。</p>
+  </div>
+  <div class="dash-stats">
+    <div class="stat"><div class="num" data-count="{{ solved }}">{{ solved }}</div><div class="lbl">已通过</div></div>
+    <div class="stat"><div class="num" data-count="{{ total }}">{{ total }}</div><div class="lbl">总题数</div></div>
+    <div class="stat"><div class="num" data-count="{{ tried }}">{{ tried }}</div><div class="lbl">尝试中</div></div>
+    <div class="stat"><div class="num"><span data-count="{{ rate }}">{{ rate }}</span>%</div><div class="lbl">通过率</div></div>
+  </div>
+</section>
+<div class="progress" title="完成度 {{ rate }}%">
+  <div class="progress-bar" style="width:{{ rate }}%"></div>
+</div>
+
+<div class="toolbar">
+  <div class="search-box">
+    <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input type="text" id="q" placeholder="搜索题目标题或编号…" autocomplete="off" spellcheck="false" aria-label="搜索题目">
+    <kbd class="search-kbd" id="qKbd" aria-hidden="true">Ctrl K</kbd>
+    <button type="button" class="search-clear" id="qClear" aria-label="清除搜索" hidden>✕</button>
+  </div>
+  <div class="diff-chips" role="tablist" aria-label="难度筛选" id="diffChips">
+    <button type="button" class="chip active" data-diff="" role="tab" aria-selected="true"><span class="chip-dot"></span>全部</button>
+    <button type="button" class="chip" data-diff="简单" role="tab" aria-selected="false"><span class="chip-dot"></span>简单</button>
+    <button type="button" class="chip" data-diff="中等" role="tab" aria-selected="false"><span class="chip-dot"></span>中等</button>
+    <button type="button" class="chip" data-diff="困难" role="tab" aria-selected="false"><span class="chip-dot"></span>困难</button>
+  </div>
+  <span class="filter-count" id="count">{{ problems|length }} <small>道题</small></span>
+</div>
+
+<div class="section-title">
+  <h1>题目列表</h1>
+</div>
+
+{% if problems %}
+<div class="problem-grid" id="grid">
+  {% for p in problems %}
+  {% set st = pstate.get(p.id, 'none') %}
+  <a class="pcard" href="{{ url_for('problem', pid=p.id) }}" data-title="{{ p.title|lower }} #{{ p.id }} {{ p.difficulty }}" data-diff="{{ p.difficulty }}">
+    <div class="pc-top">
+      <span class="pc-title">{{ p.title }}</span>
+      <span class="tag tag-{{ p.difficulty }}">{{ p.difficulty }}</span>
+    </div>
+    <div class="pc-id">#{{ p.id }} · 限时 {{ p.time_limit_ms }}ms</div>
+    <div class="pc-foot">
+      <span class="pstate {{ st }}">
+        <span class="dot"></span>
+        {% if st == 'solved' %}已通过{% elif st == 'tried' %}尝试过{% else %}未作答{% endif %}
+      </span>
+      <span class="pc-go">去作答 →</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+<p class="empty" id="noResult" style="display:none;">没有匹配的题目，换个关键词试试～</p>
+{% else %}
+<div class="empty">
+  <div class="empty-ico">📭</div>
+  <p>暂无题目。</p>
+  <p class="muted">请联系管理员在后台「题目管理」中添加，或用「导入题目」批量上传。</p>
+</div>
+{% endif %}
+
+<script>
+  (function () {
+    var q = document.getElementById('q');
+    var qClear = document.getElementById('qClear');
+    var qKbd = document.getElementById('qKbd');
+    var diffChips = document.getElementById('diffChips');
+    var grid = document.getElementById('grid');
+    var noResult = document.getElementById('noResult');
+    var count = document.getElementById('count');
+    if (!grid) return;
+    var cards = Array.prototype.slice.call(grid.querySelectorAll('.pcard'));
+    var chips = diffChips ? Array.prototype.slice.call(diffChips.querySelectorAll('.chip')) : [];
+    var currentDiff = '';
+    var isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+
+    function setDiff(d, chip) {
+      currentDiff = d;
+      chips.forEach(function (c) {
+        var on = c === chip;
+        c.classList.toggle('active', on);
+        c.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      apply();
+    }
+    function updateClear() {
+      if (qClear) qClear.hidden = !q.value;
+      if (qKbd) qKbd.style.display = q.value ? 'none' : '';
+    }
+    function apply() {
+      var kw = (q.value || '').trim().toLowerCase();
+      var d = currentDiff;
+      var shown = 0;
+      cards.forEach(function (c) {
+        var ok = (!kw || c.getAttribute('data-title').indexOf(kw) > -1) &&
+                 (!d || c.getAttribute('data-diff') === d);
+        c.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+      });
+      if (noResult) noResult.style.display = shown ? 'none' : 'block';
+      if (count) count.innerHTML = shown + ' <small>道题</small>';
+    }
+    q.addEventListener('input', function () { updateClear(); apply(); });
+    if (qClear) qClear.addEventListener('click', function () {
+      q.value = ''; q.focus(); updateClear(); apply();
+    });
+    chips.forEach(function (c) {
+      c.addEventListener('click', function () { setDiff(c.getAttribute('data-diff') || '', c); });
+    });
+    // ⌘K / Ctrl+K / "/" 聚焦搜索；Esc 清空
+    document.addEventListener('keydown', function (e) {
+      var tag = (e.target && e.target.tagName) || '';
+      var inField = /^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (e.target && e.target.isContentEditable);
+      var mod = isMac ? e.metaKey : e.ctrlKey;
+      if (mod && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault(); q.focus(); q.select();
+      } else if (!inField && e.key === '/') {
+        e.preventDefault(); q.focus(); q.select();
+      } else if (e.key === 'Escape' && document.activeElement === q) {
+        if (q.value) { q.value = ''; updateClear(); apply(); }
+        q.blur();
+      }
+    });
+    if (qKbd) qKbd.textContent = isMac ? '⌘ K' : 'Ctrl K';
+    updateClear();
+  })();
+</script>
+{% endblock %}

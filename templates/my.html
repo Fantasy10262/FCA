@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}我的提交{% endblock %}
+{% block content %}
+<div class="section-title">
+  <h2>我的提交</h2>
+  <span class="muted">{{ subs|length }} 条记录 · 最近优先</span>
+</div>
+
+{% if subs %}
+<div class="table-wrap">
+  <table class="table tight">
+    <thead>
+      <tr>
+        <th>题目</th>
+        <th>语言</th>
+        <th>结果</th>
+        <th>通过</th>
+        <th>耗时</th>
+        <th>提交时间</th>
+        <th class="ops">操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in subs %}
+      <tr>
+        <td><strong>{{ s.ptitle }}</strong></td>
+        <td><span class="tag tag-lang">{{ lang_names.get(s.language, s.language) }}</span></td>
+        <td><span class="badge status-{{ s.status }}">{{ s.status }}</span></td>
+        <td>{{ s.passed }}/{{ s.total }}</td>
+        <td class="muted">{% if s.max_runtime_ms is not none %}{{ s.max_runtime_ms }} ms{% else %}—{% endif %}</td>
+        <td class="muted">{{ s.submitted_at }}</td>
+        <td class="ops">
+          <a class="btn ghost sm" href="{{ url_for('submission', sid=s.id) }}">查看</a>
+          <a class="btn ghost sm" href="{{ url_for('problem', pid=s.problem_id) }}">重新作答</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty">还没有提交记录。去<a href="{{ url_for('problems') }}">题目列表</a>开始作答吧。</div>
+{% endif %}
+{% endblock %}

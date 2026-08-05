@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}题目集{% endblock %}
+{% block content %}
+
+<section class="dash">
+  <div class="dash-left">
+    <h1 class="dash-hi">题目集 <span class="wave">📚</span></h1>
+    <p class="muted">欢迎来到 Fantasy Coding Arena，从题目集开始你的专项训练吧。</p>
+  </div>
+</section>
+
+<div class="section-title">
+  <h1>全部题目集</h1>
+  <span class="muted">{{ sets|length }} 个题目集 · 点击卡片进入作答与查看排名</span>
+</div>
+
+{% if sets %}
+<div class="set-grid">
+  {% for s in sets %}
+  <a class="scard" href="{{ url_for('set_detail', sid=s.id) }}">
+    <div class="sc-top">
+      <span class="sc-title">{{ s.title }}</span>
+    </div>
+    <p class="sc-desc">{{ s.description or '暂无描述' }}</p>
+    <div class="sc-meta">
+      <span class="tag tag-soft">{{ s.total }} 道题</span>
+      <span class="sc-pct">我的完成度 {{ s.pct }}%</span>
+    </div>
+    <div class="progress" title="我的完成度 {{ s.pct }}%">
+      <div class="progress-bar" style="width:{{ s.pct }}%"></div>
+    </div>
+    <div class="sc-foot">
+      <span class="pstate {% if s.pct == 100 %}solved{% elif s.pct > 0 %}tried{% else %}none{% endif %}">
+        <span class="dot"></span>{% if s.pct == 100 %}已完成{% elif s.pct > 0 %}进行中（{{ s.solved }}/{{ s.total }}）{% else %}未开始{% endif %}
+      </span>
+      <span class="pc-go">进入 →</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">老师还没有发布题目集，敬请期待～</div>
+{% endif %}
+{% endblock %}
