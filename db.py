@@ -281,10 +281,19 @@ class _PGCursor:
 
 
 class _PGConn:
-    """对 psycopg2 连接的轻封装，抹平与 sqlite3 的差异。"""
+    """对 psycopg2 连接的轻封装，抹平与 sqlite3 的差异。
+
+    关键点：整条连接复用**同一个游标**（self._cur），不要每条 execute
+    都新建 cursor。原因：Supabase 用的是 pgbouncer **事务池**（Transaction
+    pooler，端口 6543），在该模式下若在一个已开事务里新建第二个 cursor 跑
+    INSERT...RETURNING 再 fetchone，会偶发「no results to fetch」（RETURNING
+    结果丢失）。单个游标顺序执行可稳定规避此问题。业务代码都是
+    fetchone/fetchall 后立即发下一句，不存在同时持有多游标的情况，故安全。
+    """
 
     def __init__(self, conn):
         self._conn = conn
+        self._cur = conn.cursor()
 
     # --- 方言修正后的执行入口 ---
     def execute(self, sql, params=()):
@@ -294,26 +303,28 @@ class _PGConn:
             and "RETURNING" not in sql
             and "problem_set_items" not in sql
         )
-        cur = self._conn.cursor()
-        cur.execute(sql, params)
-        # 包装一层，让 psycopg2 也能用 .lastrowid（业务代码依赖它拿自增主键）
+        # 关键：Postgres 没有 lastrowid，业务代码又依赖它拿自增主键，
+        # 故对普通 INSERT 自动追加 RETURNING id，再从结果里取 id。
         if auto_returning:
-            row = cur.fetchone()
-            return _PGCursor(cur, row["id"] if row else None)
-        return _PGCursor(cur, None)
+            sql += " RETURNING id"
+        self._cur.execute(sql, params)
+        # 包装一层，让 psycopg2 也能用 .lastrowid
+        if auto_returning:
+            row = self._cur.fetchone()
+            return _PGCursor(self._cur, row["id"] if row else None)
+        return _PGCursor(self._cur, None)
 
     def executemany(self, sql, params_seq):
         sql = _fix_sql(sql)
-        cur = self._conn.cursor()
-        cur.executemany(sql, params_seq)
-        return _PGCursor(cur, None)
+        self._cur.executemany(sql, params_seq)
+        return _PGCursor(self._cur, None)
 
     def executescript(self, sql):
-        # Postgres 不支持一次性执行多语句，按分号拆分逐条执行
+        # Postgres 不支持一次性执行多语句，按分号拆分逐条执行（复用同一游标）
         for stmt in sql.split(";"):
             stmt = stmt.strip()
             if stmt:
-                self._conn.cursor().execute(_fix_sql(stmt))
+                self._cur.execute(_fix_sql(stmt))
         return None
 
     def commit(self):
