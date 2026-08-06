@@ -1176,7 +1176,14 @@ def admin_learn_video_delete(vid):
 # ----------------------------- 启动 -----------------------------
 # 生产环境（waitress / gunicorn 通过 `app:app` 导入）不会执行 __main__，
 # 这里在模块导入时即初始化表结构与种子数据（幂等，可重复调用）。
-init_db()
+try:
+    init_db()
+except Exception:
+    # 把完整堆栈打到 stderr，便于在 Railway / Render 日志里定位（而非只剩一句 AttributeError）
+    import traceback
+
+    traceback.print_exc()
+    raise
 
 if __name__ == "__main__":
     avail = judge.detect_languages()

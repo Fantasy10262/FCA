@@ -253,6 +253,33 @@ def _fix_sql(sql):
     return sql
 
 
+class _PGCursor:
+    """包装 psycopg2 原生 cursor：补上业务代码依赖的 lastrowid，
+    其余属性/方法全部委托给真实 cursor。
+
+    为什么需要包装：psycopg2 的 Cursor 类带 __slots__，不能动态添加
+    lastrowid 属性（会抛 AttributeError）。用一个普通的包装对象承载
+    lastrowid，业务代码读写 cur.lastrowid 就不会踩这个坑。
+    """
+
+    def __init__(self, cur, lastrowid=None):
+        self._cur = cur
+        self.lastrowid = lastrowid
+
+    def __getattr__(self, name):
+        # 未显式定义的属性（description / rowcount / close / ...）委托真实 cursor
+        return getattr(self._cur, name)
+
+    def fetchone(self):
+        return self._cur.fetchone()
+
+    def fetchall(self):
+        return self._cur.fetchall()
+
+    def __iter__(self):
+        return iter(self._cur)
+
+
 class _PGConn:
     """对 psycopg2 连接的轻封装，抹平与 sqlite3 的差异。"""
 
@@ -267,24 +294,19 @@ class _PGConn:
             and "RETURNING" not in sql
             and "problem_set_items" not in sql
         )
-        if auto_returning:
-            sql += " RETURNING id"
         cur = self._conn.cursor()
         cur.execute(sql, params)
-        # 让 psycopg2 的 cursor 也能用 .lastrowid（业务代码依赖它拿自增主键）
+        # 包装一层，让 psycopg2 也能用 .lastrowid（业务代码依赖它拿自增主键）
         if auto_returning:
             row = cur.fetchone()
-            cur.lastrowid = row["id"] if row else None
-        else:
-            cur.lastrowid = None
-        return cur
+            return _PGCursor(cur, row["id"] if row else None)
+        return _PGCursor(cur, None)
 
     def executemany(self, sql, params_seq):
         sql = _fix_sql(sql)
         cur = self._conn.cursor()
         cur.executemany(sql, params_seq)
-        cur.lastrowid = None
-        return cur
+        return _PGCursor(cur, None)
 
     def executescript(self, sql):
         # Postgres 不支持一次性执行多语句，按分号拆分逐条执行
