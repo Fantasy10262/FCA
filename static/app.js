@@ -10,58 +10,7 @@
   var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   var motion = fine && !reduce;
 
-  /* ---------- 1. 自定义光标 + 鼠标跟随软光晕（rAF 缓动） ---------- */
-  var cursor = document.getElementById('cursor');
-  var glow = document.getElementById('glow');
-  var parallaxEls = Array.prototype.slice.call(document.querySelectorAll('[data-depth]'));
-
-  if (motion && cursor) {
-    var tmx = window.innerWidth / 2, tmy = window.innerHeight / 2; // 目标（精确）
-    var cmx = tmx, cmy = tmy;                                       // 光标缓动
-    var gx = tmx, gy = tmy;                                         // 光晕缓动
-
-    window.addEventListener('mousemove', function (e) {
-      tmx = e.clientX; tmy = e.clientY;
-    }, { passive: true });
-
-    function frame() {
-      cmx += (tmx - cmx) * 0.20;
-      cmy += (tmy - cmy) * 0.20;
-      gx += (tmx - gx) * 0.08;
-      gy += (tmy - gy) * 0.08;
-
-      root.style.setProperty('--mx', tmx + 'px');
-      root.style.setProperty('--my', tmy + 'px');
-      root.style.setProperty('--cx', cmx.toFixed(1) + 'px');
-      root.style.setProperty('--cy', cmy.toFixed(1) + 'px');
-      root.style.setProperty('--gx', gx.toFixed(1) + 'px');
-      root.style.setProperty('--gy', gy.toFixed(1) + 'px');
-
-      // 视差景深：多层以不同深度跟随鼠标
-      for (var i = 0; i < parallaxEls.length; i++) {
-        var el = parallaxEls[i];
-        var d = parseFloat(el.getAttribute('data-depth')) || 0;
-        var dx = (tmx - window.innerWidth / 2) * d;
-        var dy = (tmy - window.innerHeight / 2) * d;
-        el.style.transform = 'translate3d(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px,0)';
-      }
-      requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
-
-    // 悬停可点击元素：光标放大变色
-    document.addEventListener('mouseover', function (e) {
-      if (e.target.closest('a,button,.btn,input,select,textarea,[data-cursor]')) {
-        cursor.classList.add('hover');
-      }
-    });
-    document.addEventListener('mouseout', function (e) {
-      if (e.target.closest('a,button,.btn,input,select,textarea,[data-cursor]')) {
-        cursor.classList.remove('hover');
-      }
-    });
-    root.classList.add('cursor-on');
-  }
+  /* ---------- 1. 已移除自定义光标与鼠标视差（恢复原生光标，去除 AI 套壳感） ---------- */
 
   /* ---------- 2. 滚动叙事：进入视口从 opacity:0 + y:80 → power4.out 出现 ---------- */
   var REVEAL_SEL = '.card,.panel,.pcard,.scard,.stat,.dash,.section-title,.point-card,.lastsub,.code-panel,.table-wrap,.rank-card,.reveal-item';
