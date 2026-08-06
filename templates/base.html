@@ -8,6 +8,12 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ static_v.style }}">
 </head>
 <body>
+  <!-- 流动极光背景（装饰层，不参与交互） -->
+  <div class="aurora" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+    <span class="blob b3"></span>
+  </div>
   <!-- 开屏预加载：烟雾溶解过场 -->
   <div id="preloader" aria-hidden="true">
     <div class="pk-mark">FCA</div>

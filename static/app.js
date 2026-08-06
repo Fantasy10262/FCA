@@ -12,6 +12,24 @@
 
   /* ---------- 1. 已移除自定义光标与鼠标视差（恢复原生光标，去除 AI 套壳感） ---------- */
 
+  /* ---------- 1b. 极光背景随鼠标轻微视差（不隐藏原生光标） ---------- */
+  var aurora = document.querySelector('.aurora');
+  if (aurora && fine) {
+    var ax = 0, ay = 0, tx = 0, ty = 0, raf = null;
+    window.addEventListener('mousemove', function (e) {
+      tx = (e.clientX / window.innerWidth - 0.5) * 2;   // -1 ~ 1
+      ty = (e.clientY / window.innerHeight - 0.5) * 2;
+      if (!raf) raf = requestAnimationFrame(step);
+    }, { passive: true });
+    function step() {
+      ax += (tx - ax) * 0.06; ay += (ty - ay) * 0.06;
+      root.style.setProperty('--ax', ax.toFixed(3));
+      root.style.setProperty('--ay', ay.toFixed(3));
+      if (Math.abs(tx - ax) > 0.001 || Math.abs(ty - ay) > 0.001) raf = requestAnimationFrame(step);
+      else raf = null;
+    }
+  }
+
   /* ---------- 2. 滚动叙事：进入视口从 opacity:0 + y:80 → power4.out 出现 ---------- */
   var REVEAL_SEL = '.card,.panel,.pcard,.scard,.stat,.dash,.section-title,.point-card,.lastsub,.code-panel,.table-wrap,.rank-card,.reveal-item';
   var io = null;
