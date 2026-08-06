@@ -410,11 +410,24 @@ def logout():
 # ----------------------------- 路由：学生端 -----------------------------
 @app.route("/")
 def index():
-    if "user" not in session:
-        return redirect(url_for("login"))
-    if session["user"]["role"] == "admin":
-        return redirect(url_for("admin_dashboard"))
-    return redirect(url_for("problems"))
+    if "user" in session:
+        if session["user"]["role"] == "admin":
+            return redirect(url_for("admin_dashboard"))
+        return redirect(url_for("problems"))
+    db = get_db()
+    def _cnt(sql):
+        try:
+            row = db.execute(sql).fetchone()
+            return row["c"] if row else 0
+        except Exception:
+            return 0
+    stats = {
+        "problems": _cnt("SELECT COUNT(*) AS c FROM problems"),
+        "submissions": _cnt("SELECT COUNT(*) AS c FROM submissions"),
+        "languages": _cnt("SELECT COUNT(*) AS c FROM learn_languages"),
+        "students": _cnt("SELECT COUNT(*) AS c FROM users"),
+    }
+    return render_template("index.html", stats=stats)
 
 
 @app.route("/problems")

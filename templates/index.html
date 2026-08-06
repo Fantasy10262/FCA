@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}首页 · FCA{% endblock %}
+{% block content %}
+
+<section class="dash hero index-hero">
+  <div class="dash-left">
+    <p class="hero-eyebrow">FANTASY CODING ARENA</p>
+    <h1 class="dash-hi">代码<span class="text-accent">即战场</span></h1>
+    <p class="muted">一个为学习者打造的在线编程竞技场。多语言在线判题、实时评测、进度可视化，让每一次提交都有回响。</p>
+    <div class="row-actions" style="margin-top:22px;">
+      <a href="{{ url_for('login') }}" class="btn elastic">进入竞技场 <span class="arw">→</span></a>
+      <a href="#features" class="btn ghost">了解特色</a>
+    </div>
+  </div>
+  <div class="dash-stats">
+    <div class="stat"><div class="num">{{ stats.problems }}</div><div class="lbl">道题目</div></div>
+    <div class="stat"><div class="num">{{ stats.submissions }}</div><div class="lbl">次提交</div></div>
+    <div class="stat"><div class="num">{{ stats.languages }}</div><div class="lbl">种语言</div></div>
+    <div class="stat"><div class="num">{{ stats.students }}</div><div class="lbl">名学习者</div></div>
+  </div>
+</section>
+
+<div class="section-title" id="features"><h1>为什么是 FCA</h1></div>
+<div class="cards">
+  <div class="card feat">
+    <div class="feat-ico">⌨️</div>
+    <h3>多语言在线判题</h3>
+    <p class="muted">C / C++ / Python 在线提交，无需本地环境，打开浏览器即可开练。</p>
+  </div>
+  <div class="card feat">
+    <div class="feat-ico">⚡</div>
+    <h3>实时评测反馈</h3>
+    <p class="muted">提交即测，逐测试点返回通过与耗时，错误现场一目了然。</p>
+  </div>
+  <div class="card feat">
+    <div class="feat-ico">📈</div>
+    <h3>进度可视化</h3>
+    <p class="muted">已通过 / 尝试中 / 通过率一目了然，学习轨迹清晰可见。</p>
+  </div>
+  <div class="card feat">
+    <div class="feat-ico">📚</div>
+    <h3>学习中心</h3>
+    <p class="muted">按语言组织的路线与视频，从入门到进阶循序渐进。</p>
+  </div>
+</div>
+
+<div class="cta-band">
+  <h2>准备好迎接你的第一道题了吗？</h2>
+  <a href="{{ url_for('login') }}" class="btn elastic">进入竞技场 <span class="arw">→</span></a>
+</div>
+
+{% endblock %}
