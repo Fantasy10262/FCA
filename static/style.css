@@ -463,6 +463,8 @@ html { scroll-behavior: smooth; }
 .hero-eyebrow { margin: 0 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
   background: var(--grad); background-size: 200% 200%; -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: gradFlow 6s ease-in-out infinite; }
+/* 文字景深视差：随鼠标小幅位移的字块（由 app.js 驱动，仅在精细指针且非 reduced-motion 时生效） */
+.dh-word { display: inline-block; will-change: transform; }
 .dash.hero { padding: 28px 30px; }
 
 /* 工具栏 / 搜索 */

@@ -32,6 +32,26 @@
     }
   }
 
+  /* ---------- 1c. 文字景深视差：少量文字随鼠标小幅位移（不隐藏原生光标） ---------- */
+  var depthEls = document.querySelectorAll('[data-depth]');
+  if (depthEls.length && motion) {
+    var ddx = 0, ddy = 0, dtx = 0, dty = 0, rafD = null;
+    window.addEventListener('mousemove', function (e) {
+      dtx = (e.clientX / window.innerWidth - 0.5) * 2;   // -1 ~ 1
+      dty = (e.clientY / window.innerHeight - 0.5) * 2;
+      if (!rafD) rafD = requestAnimationFrame(stepDepth);
+    }, { passive: true });
+    function stepDepth() {
+      ddx += (dtx - ddx) * 0.08; ddy += (dty - ddy) * 0.08;
+      for (var i = 0; i < depthEls.length; i++) {
+        var d = parseFloat(depthEls[i].getAttribute('data-depth')) || 0;
+        depthEls[i].style.transform = 'translate3d(' + (ddx * d).toFixed(2) + 'px,' + (ddy * d).toFixed(2) + 'px,0)';
+      }
+      if (Math.abs(dtx - ddx) > 0.001 || Math.abs(dty - ddy) > 0.001) rafD = requestAnimationFrame(stepDepth);
+      else rafD = null;
+    }
+  }
+
   /* ---------- 2. 滚动叙事：进入视口从 opacity:0 + y:80 → power4.out 出现 ---------- */
   var REVEAL_SEL = '.card,.panel,.pcard,.scard,.stat,.dash,.section-title,.point-card,.lastsub,.code-panel,.table-wrap,.rank-card,.reveal-item';
   var io = null;
