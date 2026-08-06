@@ -11,3 +11,7 @@ venv/
 .idea/
 .vscode/
 flask_run.log
+
+# 部署证书与 ACME 挑战目录（含私钥，严禁入库）
+deploy/certs/
+deploy/www/

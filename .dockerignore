@@ -15,3 +15,6 @@ run.bat
 部署指南.md
 .git/
 .gitignore
+
+# 部署目录（含证书/ACME 挑战目录，勿入镜像）
+deploy/
