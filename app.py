@@ -1176,14 +1176,44 @@ def admin_learn_video_delete(vid):
 # ----------------------------- 启动 -----------------------------
 # 生产环境（waitress / gunicorn 通过 `app:app` 导入）不会执行 __main__，
 # 这里在模块导入时即初始化表结构与种子数据（幂等，可重复调用）。
+import traceback as _tb
+
+DB_INIT_ERROR = None
 try:
     init_db()
+    print("✅ init_db 成功")
 except Exception:
-    # 把完整堆栈打到 stderr，便于在 Railway / Render 日志里定位（而非只剩一句 AttributeError）
-    import traceback
+    DB_INIT_ERROR = _tb.format_exc()
+    # 关键：不要 re-raise，否则模块导入崩溃、waitress 起不来、Railway healthcheck
+    # 失败并回滚。改为让应用照常启动，真实错误通过 /healthz 暴露，便于远程排障。
+    print("❌ init_db 失败（应用仍启动，详见 /healthz）：")
+    print(DB_INIT_ERROR)
 
-    traceback.print_exc()
-    raise
+
+def _git_commit():
+    try:
+        import subprocess
+
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+    except Exception:
+        return "unknown"
+
+
+@app.route("/healthz")
+def healthz():
+    """诊断端点：暴露当前运行 commit、DB 类型与初始化错误，供远程排障。"""
+    url = os.environ.get("DATABASE_URL", "")
+    return {
+        "commit": _git_commit(),
+        "is_postgres": is_postgres(),
+        "db_url_prefix": (url[:25] + "…") if url else None,
+        "db_init_error": DB_INIT_ERROR,
+        "status": "ok" if DB_INIT_ERROR is None else "db_init_failed",
+    }
 
 if __name__ == "__main__":
     avail = judge.detect_languages()
