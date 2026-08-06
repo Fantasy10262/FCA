@@ -19,6 +19,8 @@
     window.addEventListener('mousemove', function (e) {
       tx = (e.clientX / window.innerWidth - 0.5) * 2;   // -1 ~ 1
       ty = (e.clientY / window.innerHeight - 0.5) * 2;
+      root.style.setProperty('--mx', e.clientX + 'px');
+      root.style.setProperty('--my', e.clientY + 'px');
       if (!raf) raf = requestAnimationFrame(step);
     }, { passive: true });
     function step() {
