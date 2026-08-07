@@ -10,6 +10,26 @@
   var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   var motion = fine && !reduce;
 
+  /* ---------- 0. 品牌开场动画：加载完成后淡出（不隐藏原生光标） ---------- */
+  (function () {
+    var pl = document.getElementById('preloader');
+    if (!pl) return;
+    // reduced-motion：直接移除，不做任何动画
+    if (reduce) { if (pl.parentNode) pl.parentNode.removeChild(pl); return; }
+    var done = false;
+    function hidePL() {
+      if (done) return; done = true;
+      pl.classList.add('pl-hide');
+      // 过渡结束后从 DOM 移除，彻底不再遮挡（pl-hide 已设 pointer-events:none）
+      setTimeout(function () { if (pl && pl.parentNode) pl.parentNode.removeChild(pl); }, 700);
+    }
+    function ready() { setTimeout(hidePL, 1400); } // 给 logo 渐显 + 流光进度条留展示时间
+    if (document.readyState === 'complete') ready();
+    else window.addEventListener('load', ready);
+    // 兜底：无论加载多慢，最多 3.5s 强制隐藏，避免卡死
+    setTimeout(hidePL, 3500);
+  })();
+
   /* ---------- 1. 已移除自定义光标与鼠标视差（恢复原生光标，去除 AI 套壳感） ---------- */
 
   /* ---------- 1b. 极光背景随鼠标轻微视差（不隐藏原生光标） ---------- */

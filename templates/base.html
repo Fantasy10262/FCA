@@ -8,6 +8,14 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ static_v.style }}">
 </head>
 <body>
+  <!-- 品牌开场动画（已充分样式化，绝不裸奔；纯装饰，不隐藏原生光标） -->
+  <div id="preloader" aria-hidden="true">
+    <div class="pl-inner">
+      <div class="pl-logo">FCA</div>
+      <div class="pl-tag">FANTASY CODING ARENA</div>
+      <div class="pl-bar"><i></i></div>
+    </div>
+  </div>
   <!-- 流动极光背景（装饰层，不参与交互） -->
   <div class="aurora" aria-hidden="true">
     <span class="blob b1"></span>

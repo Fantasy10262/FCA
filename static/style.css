@@ -652,3 +652,57 @@ html { scroll-behavior: smooth; }
   opacity: 0.85;
 }
 @keyframes spinBorder { to { --angle: 360deg; } }
+
+/* ============================================================
+   品牌开场动画（FCA 渐显 + 流光进度条）
+   注意：本层必须完整样式化，否则会像旧版一样裸奔成「异常标记」。
+   纯装饰，绝不包含 cursor:none / cursor-on，原生鼠标光标始终保留。
+   ============================================================ */
+#preloader {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(120% 120% at 50% 38%, rgba(124, 92, 255, 0.22), transparent 58%),
+    radial-gradient(90% 90% at 50% 110%, rgba(52, 224, 210, 0.12), transparent 60%),
+    #0B0E14;
+  overflow: hidden;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+#preloader.pl-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.pl-inner { display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center; }
+
+.pl-logo {
+  font-weight: 900;
+  font-size: clamp(66px, 15vw, 138px);
+  letter-spacing: 0.08em; line-height: 1;
+  background: var(--grad); background-size: 220% 220%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 28px rgba(124, 92, 255, 0.6));
+  animation: plLogoIn 1s cubic-bezier(.2, .8, .2, 1) both, gradFlow 6s ease-in-out infinite;
+}
+.pl-tag {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.42em; text-transform: uppercase;
+  color: rgba(186, 196, 224, 0.78); margin-left: 0.42em; /* 抵消尾部字距 */
+  animation: plTagIn 0.8s ease 0.5s both;
+}
+.pl-bar {
+  width: clamp(180px, 42vw, 290px); height: 3px; border-radius: 999px;
+  background: rgba(186, 196, 224, 0.16); overflow: hidden; position: relative;
+  animation: plBarIn 0.8s ease 0.7s both;
+}
+.pl-bar > i {
+  position: absolute; inset: 0; width: 42%; border-radius: 999px;
+  background: var(--grad); background-size: 200% 100%;
+  filter: drop-shadow(0 0 8px rgba(124, 92, 255, 0.75));
+  animation: plShimmer 1.15s linear infinite;
+}
+@keyframes plLogoIn { 0% { opacity: 0; transform: scale(0.82) translateY(14px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes plTagIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes plBarIn { 0% { opacity: 0; transform: scaleX(0.4); } 100% { opacity: 1; transform: scaleX(1); } }
+@keyframes plShimmer { 0% { transform: translateX(-115%); } 100% { transform: translateX(265%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  #preloader { display: none; }
+  .pl-logo, .pl-tag, .pl-bar, .pl-bar > i { animation: none; }
+}
