@@ -130,15 +130,7 @@
     document.querySelectorAll('[data-count]').forEach(function (n) { cio.observe(n); });
   }
 
-  /* ---------- 4. 预加载结束后允许交互（纯 CSS 已保证消失，这里仅清理指针） ---------- */
-  var pre = document.getElementById('preloader');
-  if (pre) {
-    pre.addEventListener('animationend', function () { pre.style.display = 'none'; });
-    // 兜底：2.5s 后强制隐藏
-    setTimeout(function () { if (pre) pre.style.display = 'none'; }, 2500);
-  }
-
-  /* ---------- 5. 提交判题「正在测评」指示 ---------- */
+  /* ---------- 4. 提交判题「正在测评」指示 ---------- */
   // 延迟出现，避免快速判题时一闪而过；reduced-motion 下直接显示（无旋转动画）。
   window.showJudging = function () {
     var el = document.getElementById('judging');
