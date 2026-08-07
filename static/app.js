@@ -52,6 +52,18 @@
     }
   }
 
+  /* ---------- 1d. 卡片指针聚光（high-tech 鼠标跟随高光，不隐藏原生光标） ---------- */
+  var spots = document.querySelectorAll('.pcard, .scard, .stat, .card, .panel');
+  if (spots.length && motion) {
+    Array.prototype.forEach.call(spots, function (el) {
+      el.addEventListener('mousemove', function (e) {
+        var r = el.getBoundingClientRect();
+        el.style.setProperty('--cx', (((e.clientX - r.left) / r.width) * 100).toFixed(1) + '%');
+        el.style.setProperty('--cy', (((e.clientY - r.top) / r.height) * 100).toFixed(1) + '%');
+      }, { passive: true });
+    });
+  }
+
   /* ---------- 2. 滚动叙事：进入视口从 opacity:0 + y:80 → power4.out 出现 ---------- */
   var REVEAL_SEL = '.card,.panel,.pcard,.scard,.stat,.dash,.section-title,.point-card,.lastsub,.code-panel,.table-wrap,.rank-card,.reveal-item';
   var io = null;

@@ -19,7 +19,7 @@
   --muted: #6B7591;
 
   /* 品牌渐变（极光蓝 → 靛 → 青，简约大气冷色调） */
-  --grad: linear-gradient(135deg, #5B8CFF 0%, #7C5CFF 48%, #34E0D2 100%);
+  --grad: linear-gradient(135deg, #5B8CFF 0%, #7C5CFF 44%, #B66BFF 70%, #34E0D2 100%);
   --grad-soft: linear-gradient(135deg, #8FB4FF, #79E6D8);
   --accent: #6E8BFF;        /* 主蓝 */
   --accent-2: #8E7CFF;      /* 靛 */
@@ -138,6 +138,7 @@ code { background: rgba(255, 255, 255, 0.07); padding: 1px 6px; border-radius: 6
   font-weight: 900; letter-spacing: 0.06em; font-size: 16px; line-height: 1;
   color: var(--accent-ink); background: var(--grad); padding: 8px 12px; border-radius: 10px;
   box-shadow: 0 6px 22px rgba(124, 92, 255, 0.40);
+  animation: glowPulse 3.4s ease-in-out infinite;
 }
 .brand-sub { font-size: 12.5px; font-weight: 600; color: var(--ink-2); letter-spacing: 0.01em; }
 .nav { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
@@ -185,8 +186,8 @@ button, .btn {
   position: relative; overflow: hidden; isolation: isolate;
   transition: transform 0.16s ease, box-shadow 0.18s ease, filter 0.16s ease;
 }
-button:hover, .btn:hover { transform: translateY(-2px); box-shadow: 0 14px 38px rgba(124, 92, 255, 0.48); filter: brightness(1.05); }
-button:active, .btn:active { transform: translateY(0); }
+button:hover, .btn:hover { transform: translateY(-2px); box-shadow: 0 14px 38px rgba(124, 92, 255, 0.48), 0 0 22px rgba(124, 92, 255, 0.35); filter: brightness(1.05); }
+button:active, .btn:active { transform: translateY(0) scale(0.98); }
 button.ghost, .btn.ghost {
   background: rgba(255, 255, 255, 0.05); color: var(--ink); border: 1px solid var(--line-strong); box-shadow: none;
 }
@@ -217,6 +218,7 @@ button:hover::before, .btn:hover::before { transform: translateX(120%); }
   background-size: 220% 220%;
   -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: gradFlow 6s ease-in-out infinite;
+  filter: drop-shadow(0 0 16px rgba(124, 92, 255, 0.30));
 }
 @keyframes gradFlow {
   0% { background-position: 0% 50%; }
@@ -453,7 +455,7 @@ pre.err { background: rgba(255, 122, 138, 0.08); color: #ffb3bd; padding: 14px; 
 html { scroll-behavior: smooth; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 .scroll-progress { position: fixed; top: 0; left: 0; height: 3px; width: 0%; z-index: 60; background: var(--grad); box-shadow: 0 0 12px rgba(124,92,255,.6); transition: width .05s linear; }
-.nav a.active { color: var(--accent-ink); background: var(--grad); font-weight: 800; box-shadow: 0 6px 20px rgba(124,92,255,.35); }
+.nav a.active { color: var(--accent-ink); background: var(--grad); font-weight: 800; box-shadow: 0 6px 20px rgba(124,92,255,.35); animation: glowPulse 3s ease-in-out infinite; }
 .nav a.active:hover { color: var(--accent-ink); filter: brightness(1.06); }
 .nav-toggle { display: none; flex-direction: column; gap: 5px; justify-content: center; width: 42px; height: 38px; padding: 8px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--bg-2); cursor: pointer; }
 .nav-toggle span { display: block; height: 2px; border-radius: 2px; background: var(--ink); transition: transform .25s, opacity .25s; }
@@ -484,7 +486,7 @@ html { scroll-behavior: smooth; }
 .filter-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .filter-select option, .form select option { background: #161616; color: #EEF2FB; padding: 8px; font-weight: 500; }
 .filter-count { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--line); color: var(--ink-2); font-weight: 700; font-size: 13.5px; }
-.filter-count::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+.filter-count::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); animation: glowPulse 2.6s ease-in-out infinite; }
 .empty-ico { font-size: 40px; margin-bottom: 8px; }
 
 @media (max-width: 760px) {
@@ -509,7 +511,7 @@ html { scroll-behavior: smooth; }
 .index-hero { gap: 28px; }
 .feat-ico { font-size: 24px; margin-bottom: 4px; }
 .feat h3 { margin: 6px 0 8px; }
-.cta-band { text-align: center; padding: 36px 24px; margin-top: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: var(--shadow); }
+.cta-band { text-align: center; padding: 36px 24px; margin-top: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: var(--shadow); position: relative; overflow: hidden; }
 .cta-band h2 { margin: 0 0 18px; }
 .hero-sub { color: var(--ink-2); font-size: clamp(1rem, 2.2vw, 1.2rem); line-height: 1.7; margin: 22px 0 26px; max-width: 34ch; }
 .hero-meta { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; font-weight: 600; letter-spacing: .02em; }
@@ -605,3 +607,48 @@ html { scroll-behavior: smooth; }
   .diff-chips { height: auto; flex-wrap: wrap; }
   .diff-chips .chip { padding: 0 12px; font-size: 12.5px; }
 }
+
+/* ============ 高科技增强包（v6）：霓虹呼吸 / 旋转边框 / 指针聚光 / 科技网格 ============ */
+@property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+
+/* 科技网格背景（极淡，仅顶部透出，营造高科技底纹；缓慢漂移） */
+.tech-grid {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(124, 92, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 92, 255, 0.05) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(ellipse 85% 55% at 50% -8%, #000, transparent 78%);
+  mask-image: radial-gradient(ellipse 85% 55% at 50% -8%, #000, transparent 78%);
+  animation: gridDrift 22s linear infinite;
+}
+@keyframes gridDrift { to { background-position: 0 46px, 46px 0; } }
+
+/* 霓虹呼吸光（logo / 激活导航 / 状态指示点） */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 6px 20px rgba(124, 92, 255, 0.30); }
+  50%      { box-shadow: 0 6px 34px rgba(124, 92, 255, 0.62); }
+}
+
+/* 指针聚光：卡片 / 面板随鼠标出现的高光晕（只动装饰层，绝不隐藏原生光标） */
+.pcard, .scard, .stat, .card, .panel { position: relative; }
+.pcard::after, .scard::after, .stat::after, .card::after, .panel::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0;
+  background: radial-gradient(240px circle at var(--cx, 50%) var(--cy, 50%), rgba(124, 92, 255, 0.16), transparent 62%);
+  opacity: 0; transition: opacity 0.35s ease;
+}
+.pcard:hover::after, .scard:hover::after, .stat:hover::after, .card:hover::after, .panel:hover::after { opacity: 1; }
+
+/* 旋转霓虹边框（Hero 仪表盘 / 登录卡 / 行动号召带） */
+.dash.hero::after, .login-wrap::after, .cta-band::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none;
+  background: conic-gradient(from var(--angle, 0deg),
+    transparent 0deg, rgba(110, 139, 255, 0) 60deg,
+    var(--accent) 150deg, var(--accent-2) 210deg,
+    rgba(52, 224, 210, 0) 300deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: spinBorder 7s linear infinite;
+  opacity: 0.85;
+}
+@keyframes spinBorder { to { --angle: 360deg; } }
