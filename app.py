@@ -15,7 +15,7 @@ from flask import (
     send_file,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 
 import judge
 
@@ -32,8 +32,8 @@ app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8MB 上传上限
 csrf = CSRFProtect(app)
 
 
-@csrf.error_handler
-def _csrf_error(reason):
+@app.errorhandler(CSRFError)
+def _csrf_error(e):
     """CSRF 校验失败（通常因页面停留过久、会话令牌过期）时给友好提示，而非裸 400。"""
     flash("安全校验未通过（页面可能已过期），请返回重试", "danger")
     return redirect(request.referrer or url_for("login"))
