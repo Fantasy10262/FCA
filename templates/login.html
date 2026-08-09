@@ -20,6 +20,7 @@
         <p class="lw-title">登 录</p>
       </div>
       <form method="post" class="form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>学号
           <input type="text" name="student_id" autocomplete="off" required placeholder="例如 2021001">
         </label>

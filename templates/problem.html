@@ -45,6 +45,7 @@
     {% endif %}
 
     <form method="post" id="submit-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label>提交语言
         <select name="language" id="lang">
           {% for lang in problem.allowed_languages %}

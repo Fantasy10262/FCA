@@ -10,6 +10,24 @@
   var fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   var motion = fine && !reduce;
 
+  /* ---------- 0.5 CSRF：为所有 POST 表单自动注入 csrf_token（与 Flask-WTF 配合） ---------- */
+  (function () {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (!meta) return;
+    var token = meta.getAttribute('content');
+    document.addEventListener('submit', function (e) {
+      var form = e.target;
+      if (!form || !form.method) return;
+      if (form.method.toLowerCase() !== 'post') return;
+      if (form.querySelector('input[name="csrf_token"]')) return; // 已显式包含则跳过
+      var inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = 'csrf_token';
+      inp.value = token;
+      form.appendChild(inp);
+    });
+  })();
+
   /* ---------- 0. 品牌开场动画：加载完成后淡出（不隐藏原生光标） ---------- */
   (function () {
     var pl = document.getElementById('preloader');

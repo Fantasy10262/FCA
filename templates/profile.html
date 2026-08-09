@@ -23,6 +23,7 @@
 
   <p class="blk-title">修改密码</p>
   <form method="post" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label>当前密码
       <input type="password" name="current_password" required autocomplete="current-password"
              placeholder="请输入当前密码">

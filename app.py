@@ -15,6 +15,7 @@ from flask import (
     send_file,
 )
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_wtf.csrf import CSRFProtect
 
 import judge
 
@@ -25,6 +26,17 @@ os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 app = Flask(__name__)
 app.secret_key = os.environ.get("OJ_SECRET", "change-me-in-production-oj-secret")
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8MB 上传上限
+
+# CSRF 防护：所有 POST/PUT/DELETE 请求必须携带 csrf_token。
+# 令牌由 base.html 的 <meta name="csrf-token"> 提供，app.js 在表单提交时自动注入。
+csrf = CSRFProtect(app)
+
+
+@csrf.error_handler
+def _csrf_error(reason):
+    """CSRF 校验失败（通常因页面停留过久、会话令牌过期）时给友好提示，而非裸 400。"""
+    flash("安全校验未通过（页面可能已过期），请返回重试", "danger")
+    return redirect(request.referrer or url_for("login"))
 
 
 # 静态资源缓存：CSS/JS 走强校验（每次重新拉取最新），图片字体二进制走永久缓存。
@@ -383,11 +395,13 @@ def login():
         user = db.execute(
             "SELECT * FROM users WHERE student_id=?", (sid,)
         ).fetchone()
-        if (
-            user
-            and user["name"] == name
-            and check_password_hash(user["password_hash"], pw)
-        ):
+        if not user:
+            flash("该学号尚未注册，请先注册或检查学号", "danger")
+        elif user["name"] != name:
+            flash("该学号对应的姓名不正确", "danger")
+        elif not check_password_hash(user["password_hash"], pw):
+            flash("密码错误", "danger")
+        else:
             session["user"] = {
                 "id": user["id"],
                 "student_id": user["student_id"],
@@ -397,7 +411,6 @@ def login():
             if user["role"] == "admin":
                 return redirect(url_for("admin_dashboard"))
             return redirect(url_for("problems"))
-        flash("学号、姓名或密码不正确", "danger")
     return render_template("login.html")
 
 
