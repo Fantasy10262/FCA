@@ -3,6 +3,16 @@
 {% block content %}
 <h1>导入题目</h1>
 
+<div class="card" style="margin-top:8px;">
+  <div class="row-between">
+    <div>
+      <h3 style="margin:0 0 4px;">想从 PTA（拼题 A）题目集一键搬题？</h3>
+      <p class="muted" style="margin:0;">不用装 Python、不用传文件：填题目集 ID + Cookie，点一下自动抓题入库。</p>
+    </div>
+    <a class="btn" href="{{ url_for('admin_pta_import') }}">从 PTA 一键导入 →</a>
+  </div>
+</div>
+
 <div class="tips">
   <b>两种导入方式（任选其一）</b>
   <ol>
@@ -10,8 +20,8 @@
     <li>直接把 JSON 内容粘贴到下方文本框 → 点「导入」。</li>
   </ol>
   <p class="muted" style="margin:6px 0 0">
-    想从 PTA（拼题 A）题目集批量搬题？可用项目里的 <code>pta_import.py</code> 自动抓取，
-    生成的就是这种 JSON，导入即可（详见脚本内说明；PTA 的隐藏测试点不会公开，需你自行补全）。
+    想从 PTA（拼题 A）题目集批量搬题？推荐用上方「<a href="{{ url_for('admin_pta_import') }}">从 PTA 一键导入</a>」在线抓取；
+    也可在本地用项目里的 <code>pta_import.py</code> 命令行抓取（详见脚本内说明；PTA 的隐藏测试点不会公开，需你自行补全）。
   </p>
 </div>
 

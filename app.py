@@ -5,6 +5,7 @@ PTA 风格在线判题平台（Flask + SQLite）
 - 判题：调用 judge.py，支持 C / C++ / Python，默认 C
 """
 import os
+import re
 import json
 from functools import wraps
 
@@ -18,6 +19,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_wtf.csrf import CSRFProtect, CSRFError
 
 import judge
+# PTA 一键导入：抓取逻辑复用 pta_import.scrape_problem_set
+from pta_import import scrape_problem_set
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "data", "oj.db")
@@ -993,6 +996,41 @@ def admin_import():
         flash("成功导入 %d 道题目" % cnt, "success")
         return redirect(url_for("admin_problems"))
     return render_template("admin_import.html")
+
+
+@app.route("/admin/pta_import", methods=["GET", "POST"])
+@admin_required
+def admin_pta_import():
+    if request.method == "POST":
+        psid_raw = (request.form.get("psid") or "").strip()
+        auth = (request.form.get("cookie") or "").strip()
+        # 从完整链接里抠题目集 ID
+        m = re.search(r"problem-sets/(\d+)", psid_raw)
+        psid = m.group(1) if m else re.sub(r"\D", "", psid_raw)
+        if not psid:
+            flash("请填写题目集 ID 或题目集页面链接", "danger")
+            return redirect(url_for("admin_pta_import"))
+        if not auth:
+            flash("请填写 PTA 的登录 Cookie（在 PTA 页面点一下书签即可复制）", "danger")
+            return redirect(url_for("admin_pta_import"))
+        # 注意：Cookie 属于用户凭据，绝不写入日志、绝不回显
+        try:
+            problems = scrape_problem_set(psid, auth)
+        except ValueError as e:
+            flash("抓取失败：" + str(e), "danger")
+            return redirect(url_for("admin_pta_import"))
+        except Exception as e:  # pragma: no cover - 兜底
+            flash("抓取失败：%s" % e, "danger")
+            return redirect(url_for("admin_pta_import"))
+        if not problems:
+            flash("没抓到任何题目，请检查题目集 ID 是否正确、Cookie 是否过期", "danger")
+            return redirect(url_for("admin_pta_import"))
+        db_ins = get_db()
+        cnt = import_problems_json(db_ins, problems)
+        db_ins.commit()
+        flash("成功从 PTA 导入 %d 道题目！（仅含样例测试点，请到「测试用例」补全隐藏点）" % cnt, "success")
+        return redirect(url_for("admin_problems"))
+    return render_template("admin_pta_import.html")
 
 
 @app.route("/admin/download_sample")
