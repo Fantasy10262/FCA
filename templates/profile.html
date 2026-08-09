@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}个人中心{% endblock %}
+{% block content %}
+<div class="login-wrap raise" style="max-width: 460px;">
+  <div class="lw-head">
+    <div class="logo">FCA</div>
+    <p class="lw-title">个 人 中 心</p>
+  </div>
+
+  <div class="form">
+    <label>学号
+      <input type="text" value="{{ current_user.student_id }}" readonly>
+    </label>
+    <label>姓名
+      <input type="text" value="{{ current_user.name }}" readonly>
+    </label>
+    <label>身份
+      <input type="text" value="{{ '管理员' if current_user.role == 'admin' else '学生' }}" readonly>
+    </label>
+  </div>
+
+  <hr class="sep">
+
+  <p class="blk-title">修改密码</p>
+  <form method="post" class="form">
+    <label>当前密码
+      <input type="password" name="current_password" required autocomplete="current-password"
+             placeholder="请输入当前密码">
+    </label>
+    <label>新密码
+      <input type="password" name="new_password" required autocomplete="new-password"
+             placeholder="至少 6 位">
+    </label>
+    <label>确认新密码
+      <input type="password" name="new_password2" required autocomplete="new-password"
+             placeholder="再输入一次新密码">
+    </label>
+    <button type="submit" class="elastic">保 存 修 改 <span class="arw">→</span></button>
+  </form>
+</div>
+{% endblock %}

@@ -324,6 +324,9 @@ input[type=file] { font: inherit; color: var(--ink-2); }
 .login-wrap .hint { text-align: center; color: var(--muted); margin: 4px 0 18px; }
 .login-wrap .form { margin: 0 auto; }
 .login-wrap .muted { text-align: center; margin-top: 16px; font-size: 12.5px; }
+.login-wrap .sep { border: none; border-top: 1px solid var(--line); margin: 22px 0 18px; }
+.login-wrap .blk-title { font-size: 15px; font-weight: 800; color: var(--ink-2); margin: 0 0 12px; }
+.login-wrap .form input[readonly] { color: var(--muted); background: var(--surface-2); }
 
 /* ============ 结果页 ============ */
 .result-head { display: flex; align-items: center; gap: 16px; margin: 6px 0 20px; flex-wrap: wrap;

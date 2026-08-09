@@ -53,11 +53,13 @@
         <a href="{{ url_for('admin_import') }}" class="{% if ep == 'admin_import' %}active{% endif %}">导入题目</a>
         <a href="{{ url_for('admin_submissions') }}" class="{% if ep == 'admin_submissions' %}active{% endif %}">全部提交</a>
         <a href="{{ url_for('admin_learn') }}" class="{% if ep == 'admin_learn' %}active{% endif %}">学习中心</a>
+        <a href="{{ url_for('profile') }}" class="{% if ep == 'profile' %}active{% endif %}">个人中心</a>
       {% else %}
         <a href="{{ url_for('problems') }}" class="{% if ep in ('problems','problem') %}active{% endif %}">题目列表</a>
         <a href="{{ url_for('sets') }}" class="{% if ep in ('sets','set_detail') %}active{% endif %}">题目集</a>
         <a href="{{ url_for('learn') }}" class="{% if ep == 'learn' %}active{% endif %}">学习中心</a>
         <a href="{{ url_for('my_submissions') }}" class="{% if ep in ('my_submissions','submission') %}active{% endif %}">我的提交</a>
+        <a href="{{ url_for('profile') }}" class="{% if ep == 'profile' %}active{% endif %}">个人中心</a>
       {% endif %}
       <span class="who">{{ current_user.name }}（{{ current_user.student_id }}）</span>
       <a href="{{ url_for('logout') }}" class="logout">退出</a>

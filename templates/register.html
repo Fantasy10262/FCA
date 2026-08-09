@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}注册{% endblock %}
+{% block content %}
+<div class="login-stage">
+  <div class="login-grid">
+    <!-- 左：文案 -->
+    <div class="login-hero">
+      <p class="hero-eyebrow" data-depth="6">FANTASY CODING ARENA</p>
+      <h1 class="login-display"><span class="dh-word" data-depth="10">加入</span><span class="gradient-text dh-word" data-depth="20">竞技场</span></h1>
+      <p class="hero-sub">创建你的专属账号，<br>随时回来刷题、查看进度、管理密码。</p>
+      <div class="hero-meta">
+        <span>多语言在线判题</span><i>·</i><span>实时评测反馈</span><i>·</i><span>进度可视化</span>
+      </div>
+    </div>
+
+    <!-- 右：注册卡片 -->
+    <div class="login-wrap raise">
+      <div class="lw-head">
+        <div class="logo">FCA</div>
+        <p class="lw-title">注 册</p>
+      </div>
+      <form method="post" class="form">
+        <label>学号
+          <input type="text" name="student_id" autocomplete="off" required
+                 placeholder="用于登录的唯一学号" value="{{ sid or '' }}">
+        </label>
+        <label>姓名
+          <input type="text" name="name" autocomplete="off" required
+                 placeholder="你的真实姓名" value="{{ name or '' }}">
+        </label>
+        <label>密码
+          <input type="password" name="password" required autocomplete="new-password"
+                 placeholder="至少 6 位">
+        </label>
+        <label>确认密码
+          <input type="password" name="password2" required autocomplete="new-password"
+                 placeholder="再输入一次密码">
+        </label>
+        <button type="submit" class="elastic">创 建 账 号 <span class="arw">→</span></button>
+      </form>
+      <p class="muted">已有账号？<a href="{{ url_for('login') }}">直接登录</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -407,6 +407,89 @@ def logout():
     return redirect(url_for("login"))
 
 
+# ----------------------------- 路由：注册 / 个人中心 -----------------------------
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    # 已登录用户无需再注册
+    if "user" in session:
+        if session["user"]["role"] == "admin":
+            return redirect(url_for("admin_dashboard"))
+        return redirect(url_for("problems"))
+
+    if request.method == "POST":
+        sid = (request.form.get("student_id") or "").strip()
+        name = (request.form.get("name") or "").strip()
+        pw = request.form.get("password") or ""
+        pw2 = request.form.get("password2") or ""
+
+        errors = []
+        if not sid:
+            errors.append("学号不能为空")
+        if not name:
+            errors.append("姓名不能为空")
+        if len(pw) < 6:
+            errors.append("密码至少 6 位")
+        if pw != pw2:
+            errors.append("两次输入的密码不一致")
+        if errors:
+            for e in errors:
+                flash(e, "danger")
+            return render_template("register.html", sid=sid, name=name)
+
+        db = get_db()
+        try:
+            cur = db.execute(
+                "INSERT INTO users (student_id, name, password_hash, role) "
+                "VALUES (?,?,?,?)",
+                (sid, name, generate_password_hash(pw), "student"),
+            )
+            db.commit()
+        except IntegrityError:
+            flash("该学号已被注册，请直接登录或换一个学号", "danger")
+            return render_template("register.html", sid=sid, name=name)
+
+        # 注册成功，自动登录
+        uid = cur.lastrowid
+        session["user"] = {
+            "id": uid, "student_id": sid, "name": name, "role": "student",
+        }
+        flash("注册成功，已自动登录 🎉", "success")
+        return redirect(url_for("problems"))
+
+    return render_template("register.html")
+
+
+@app.route("/profile", methods=["GET", "POST"])
+@login_required
+def profile():
+    db = get_db()
+    if request.method == "POST":
+        current = request.form.get("current_password") or ""
+        new = request.form.get("new_password") or ""
+        new2 = request.form.get("new_password2") or ""
+
+        user = db.execute(
+            "SELECT * FROM users WHERE id=?", (session["user"]["id"],)
+        ).fetchone()
+
+        if not check_password_hash(user["password_hash"], current):
+            flash("当前密码不正确", "danger")
+        elif len(new) < 6:
+            flash("新密码至少 6 位", "danger")
+        elif new != new2:
+            flash("两次输入的新密码不一致", "danger")
+        else:
+            db.execute(
+                "UPDATE users SET password_hash=? WHERE id=?",
+                (generate_password_hash(new), user["id"]),
+            )
+            db.commit()
+            flash("密码修改成功", "success")
+            return redirect(url_for("profile"))
+
+    return render_template("profile.html")
+
+
 # ----------------------------- 路由：学生端 -----------------------------
 @app.route("/")
 def index():
