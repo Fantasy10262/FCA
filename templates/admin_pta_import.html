@@ -4,42 +4,38 @@
 <h1>从 PTA（拼题 A）一键导入题目</h1>
 
 <div class="tips">
-  <b>不用装 Python、不用传文件：</b>在下面填好「题目集 ID」+「PTA 登录 Cookie」，点一下，后台自动抓题入库。
+  <b>不用装 Python、不用传文件：</b>在下面把 F12 复制的「整段 cURL」粘进来，点一下，后台自动抓题入库。
 </div>
 
 <div class="card" style="margin-top:16px;">
-  <h3 style="margin:0 0 8px;">① 先准备 PTA 登录 Cookie（只需做一次）</h3>
+  <h3 style="margin:0 0 8px;">① 准备 PTA 登录凭据（只需做一次）</h3>
   <p class="muted" style="margin:0 0 10px;">
-    把下面的「书签」拖到浏览器顶部书签栏保存（或用下方文本框复制后手动建书签）。
-    然后打开并登录 <code>pintia.cn</code>，在任意 PTA 页面<strong>点一下这个书签</strong>，
-    会弹出一串字符，<strong>整段复制</strong>下来，粘到步骤②的框里即可。
+    PTA 的登录令牌在 <b>HttpOnly Cookie</b> 里，浏览器书签的 <code>document.cookie</code> 读不到，
+    必须从 Network 抓「复制为 cURL」：
   </p>
-  <p style="margin:0 0 10px;">
-    <a class="btn" id="bm"
-       href="javascript:(function(){var c=document.cookie;if(!c){alert('请先登录 pintia.cn');return;}var t=c.match(/(?:^|;\s*)token=([^;]+)/);prompt('复制下面这串 Cookie，粘贴到后台「从 PTA 一键导入」：', t?t[1]:c);})();"
-       title="拖到书签栏保存">⬇ 拖到书签栏：复制 PTA Cookie</a>
-    <span class="muted">（手机/不会拖？见下方文本框手动复制）</span>
+  <ol class="muted" style="margin:0 0 10px;padding-left:20px;line-height:1.8;">
+    <li>浏览器登录 <code>pintia.cn</code>，打开你的题目集 / 考试页。</li>
+    <li>按 <b>F12</b> → <b>Network（网络）</b> 标签。</li>
+    <li>随便点一条 <code>pintia.cn/api</code> 开头的请求（例如 <code>problem-status</code>）。</li>
+    <li>右键该请求 → <b>复制</b> → <b>复制为 cURL（bash）</b>。</li>
+    <li>把<strong>整段 cURL</strong> 粘到步骤②的「PTA 登录凭据（cURL）」框里即可
+        （脚本会自动从中抠出 Cookie、题目集 ID、考试 ID，无需手填）。</li>
+  </ol>
+  <p class="muted" style="margin:0;">
+    💡 嫌 cURL 太长？也可以只复制请求里的 <code>Cookie:</code> 请求头那串，但整段 cURL 最省事（考试类题目集尤其需要里面的考试 ID）。
   </p>
-  <details>
-    <summary class="muted" style="cursor:pointer;">手动复制书签代码（点开）</summary>
-    <textarea readonly rows="4" style="width:100%;font-family:Consolas,monospace;margin-top:8px;"
-      onclick="this.select();">javascript:(function(){var c=document.cookie;if(!c){alert('请先登录 pintia.cn');return;}var t=c.match(/(?:^|;\s*)token=([^;]+)/);prompt('复制下面这串 Cookie，粘贴到后台「从 PTA 一键导入」：', t?t[1]:c);})();</textarea>
-    <p class="muted" style="margin:6px 0 0;">
-      新建书签 → 名称随意（如「复制 PTA Cookie」）→ 网址粘贴上面这整段 → 保存。之后在 pintia 页面点它即可。
-    </p>
-  </details>
 </div>
 
 <form method="post" class="form wide" style="margin-top:16px;">
   <h3>② 填写信息并导入</h3>
 
-  <label for="psid">题目集 ID / 题目集页面链接</label>
-  <input type="text" id="psid" name="psid" required
-         placeholder="如 994805046380707840 或整条 https://pintia.cn/problem-sets/.../problems">
+  <label for="psid">题目集 ID / 题目集页面链接（可选）</label>
+  <input type="text" id="psid" name="psid"
+         placeholder="留空也行——若下面粘了整段 cURL，会自动识别；或填 994805046380707840 / 整条链接">
 
-  <label for="cookie">PTA 登录 Cookie（从书签弹窗复制的那串）</label>
-  <textarea id="cookie" name="cookie" rows="4" required
-            placeholder="粘贴从书签弹窗复制的整串 Cookie…"
+  <label for="cookie">PTA 登录凭据（推荐粘整段 cURL）</label>
+  <textarea id="cookie" name="cookie" rows="6" required
+            placeholder="右键 Network 里某条 pintia.cn/api 请求 → 复制 → 复制为 cURL（bash），整段粘这里…"
             style="font-family:Consolas,monospace;width:100%;"></textarea>
 
   {{ csrf_token() }}
@@ -53,8 +49,10 @@
 <div class="tips" style="margin-top:16px;">
   <b>⚠️ 导入后必做：</b> PTA 只公开<strong>样例</strong>测试点，隐藏测试点不对外提供。
   导入的题目只有样例，学生提交只能过样例。请到后台「测试用例」为每题<strong>补全隐藏测试点</strong>才能正常判分。
-  <br><b>⚠️ 格式说明：</b> 题面会被清理为纯文本，原题里的公式 / 图片会丢失（纯文字题不受影响）。
-  <br><b>⚠️ 若抓取报错：</b> 多为 Cookie 过期（重新点书签复制一次）或服务端网络访问 pintia 受限；
+  部分「输出固定字符串」的题（如 "I Love GPLT"）PTA 未给结构化样例，需你手动补一个测试点。
+  <br><b>⚠️ 格式说明：</b> 题面会被清理为纯文本，原题里的公式（LaTeX）/ 图片会显示为原始文本（不影响纯文字题判分）。
+  <br><b>⚠️ 若抓取报错：</b> 多为 Cookie 过期（重新复制一次 cURL）或服务端网络访问 pintia 受限；
   此时可改用项目里的 <code>pta_import.py</code> 命令行脚本（在你电脑本地跑，不受服务器网络限制）。
+  <br><b>🔒 安全：</b> Cookie 属于你的登录凭据，仅在本次导入时使用，<strong>不会写入日志、不会回显、不会落库</strong>。导入完成后建议在 pintia 退出登录使其失效。
 </div>
 {% endblock %}

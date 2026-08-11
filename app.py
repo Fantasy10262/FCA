@@ -20,7 +20,7 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 
 import judge
 # PTA 一键导入：抓取逻辑复用 pta_import.scrape_problem_set
-from pta_import import scrape_problem_set
+from pta_import import scrape_problem_set, parse_curl_auth
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "data", "oj.db")
@@ -1004,14 +1004,18 @@ def admin_pta_import():
     if request.method == "POST":
         psid_raw = (request.form.get("psid") or "").strip()
         auth = (request.form.get("cookie") or "").strip()
+        # 若用户把整段 cURL 粘到 Cookie 框，自动从中抠出题目集 / 考试 ID
+        ch, th, lh, eh, psid_h = parse_curl_auth(auth)
+        if not psid_raw and psid_h:
+            psid_raw = psid_h
         # 从完整链接里抠题目集 ID
         m = re.search(r"problem-sets/(\d+)", psid_raw)
         psid = m.group(1) if m else re.sub(r"\D", "", psid_raw)
         if not psid:
-            flash("请填写题目集 ID 或题目集页面链接", "danger")
+            flash("请填写题目集 ID（或把整段 cURL 粘到下方 Cookie 框，会自动识别）", "danger")
             return redirect(url_for("admin_pta_import"))
         if not auth:
-            flash("请填写 PTA 的登录 Cookie（在 PTA 页面点一下书签即可复制）", "danger")
+            flash("请填写 PTA 的登录 Cookie，或把 F12 复制的整段 cURL 粘进来（推荐）", "danger")
             return redirect(url_for("admin_pta_import"))
         # 注意：Cookie 属于用户凭据，绝不写入日志、绝不回显
         try:
