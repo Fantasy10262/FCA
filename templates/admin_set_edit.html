@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{% if s %}编辑题目集{% else %}新建题目集{% endif %}{% endblock %}
+{% from "_icons.html" import icon, rank_badge %}
 {% block content %}
 <a href="{{ url_for('admin_sets') }}">← 题目集管理</a>
 <h1>{% if s %}编辑题目集：{{ s.title }}{% else %}新建题目集{% endif %}</h1>
@@ -63,7 +64,7 @@
   <tbody>
     {% for r in stats.ranking %}
     <tr class="{% if loop.index0 < 3 %}top{{ loop.index0 + 1 }}{% endif %}">
-      <td class="rank">{% if loop.index0 == 0 %}🥇{% elif loop.index0 == 1 %}🥈{% elif loop.index0 == 2 %}🥉{% else %}{{ r.rank }}{% endif %}</td>
+      <td class="rank">{% if loop.index0 == 0 %}{{ rank_badge(1) }}{% elif loop.index0 == 1 %}{{ rank_badge(2) }}{% elif loop.index0 == 2 %}{{ rank_badge(3) }}{% else %}{{ r.rank }}{% endif %}</td>
       <td class="muted">{{ r.sid }}</td>
       <td><strong>{{ r.name }}</strong></td>
       <td>{{ r.solved }} / {{ r.total }}</td>

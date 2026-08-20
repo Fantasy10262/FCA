@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}我的订单 · 二手市场{% endblock %}
+{% from "_icons.html" import icon %}
 {% block content %}
 
 <div class="section-title"><h1>我的订单</h1></div>
@@ -53,7 +54,7 @@
             <button class="btn elastic" type="submit">确认收货，完成交易</button>
           </form>
           {% elif o.status == 'completed' %}
-          <div class="qr-note">交易完成 ✅ 收货时间：{{ o.completed_at }}</div>
+          <div class="qr-note">交易完成，收货时间：{{ o.completed_at }}</div>
           {% elif o.status == 'cancelled' %}
           <div class="qr-note">订单已取消（{{ o.cancelled_at }}）</div>
           {% endif %}
@@ -62,7 +63,7 @@
     </div>
     {% endfor %}
   {% else %}
-    <div class="empty-state"><div class="big">🛒</div><p>还没有买过东西。<a href="{{ url_for('market') }}">去市场逛逛 →</a></p></div>
+    <div class="empty-state"><div class="big">{{ icon('cart', 44) }}</div><p>还没有买过东西。<a href="{{ url_for('market') }}">去市场逛逛 →</a></p></div>
   {% endif %}
 </div>
 
@@ -101,7 +102,7 @@
           {% elif o.status == 'delivered' %}
           <div class="tipbox">已交付，等待买家确认收货。</div>
           {% elif o.status == 'completed' %}
-          <div class="qr-note">交易完成 ✅ 确认时间：{{ o.completed_at }}</div>
+          <div class="qr-note">交易完成，确认时间：{{ o.completed_at }}</div>
           {% elif o.status == 'cancelled' %}
           <div class="qr-note">订单已取消（{{ o.cancelled_at }}）</div>
           {% endif %}
@@ -110,7 +111,7 @@
     </div>
     {% endfor %}
   {% else %}
-    <div class="empty-state"><div class="big">📤</div><p>还没有卖出过东西。</p></div>
+    <div class="empty-state"><div class="big">{{ icon('send', 44) }}</div><p>还没有卖出过东西。</p></div>
   {% endif %}
 </div>
 

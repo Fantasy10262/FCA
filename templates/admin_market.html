@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}二手市场管理 · FCA{% endblock %}
+{% from "_icons.html" import icon %}
 {% block content %}
 
 <div class="section-title"><h1>二手市场管理</h1></div>
@@ -29,24 +30,24 @@
         <div class="mrow" style="margin-top:10px;">
           <form method="post" action="{{ url_for('admin_market_approve', iid=it.id) }}" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn elastic" type="submit">✅ 通过并上架</button>
+            <button class="btn elastic" type="submit">{{ icon('check', 15) }} 通过并上架</button>
           </form>
           <form method="post" action="{{ url_for('admin_market_reject', iid=it.id) }}" style="display:inline;" id="rej-{{ it.id }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="reason" value="">
-            <button class="btn ghost" type="button" onclick="rejectItem({{ it.id }})">❌ 拒绝</button>
+            <button class="btn ghost" type="button" onclick="rejectItem({{ it.id }})">{{ icon('x', 15) }} 拒绝</button>
           </form>
           <form method="post" action="{{ url_for('admin_market_delete', iid=it.id) }}" style="display:inline;"
                 onsubmit="return confirm('确定删除该商品及其订单？此操作不可恢复。');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn ghost" type="submit">🗑 删除</button>
+            <button class="btn ghost" type="submit">{{ icon('trash', 15) }} 删除</button>
           </form>
         </div>
       </div>
     </div>
     {% endfor %}
   {% else %}
-    <div class="empty-state"><div class="big">🎉</div><p>没有待审核的商品。</p></div>
+    <div class="empty-state"><div class="big">{{ icon('spark', 44) }}</div><p>没有待审核的商品。</p></div>
   {% endif %}
 </div>
 

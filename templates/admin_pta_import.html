@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}从 PTA 一键导入{% endblock %}
+{% from "_icons.html" import icon %}
 {% block content %}
 <h1>从 PTA（拼题 A）一键导入题目</h1>
 
@@ -22,7 +23,7 @@
         （脚本会自动从中抠出 Cookie、题目集 ID、考试 ID，无需手填）。</li>
   </ol>
   <p class="muted" style="margin:0;">
-    💡 嫌 cURL 太长？也可以只复制请求里的 <code>Cookie:</code> 请求头那串，但整段 cURL 最省事（考试类题目集尤其需要里面的考试 ID）。
+    {{ icon('info', 15) }} 嫌 cURL 太长？也可以只复制请求里的 <code>Cookie:</code> 请求头那串，但整段 cURL 最省事（考试类题目集尤其需要里面的考试 ID）。
   </p>
 </div>
 
@@ -47,12 +48,12 @@
 </form>
 
 <div class="tips" style="margin-top:16px;">
-  <b>⚠️ 导入后必做：</b> PTA 只公开<strong>样例</strong>测试点，隐藏测试点不对外提供。
+  <b>{{ icon('warn', 15) }} 导入后必做：</b> PTA 只公开<strong>样例</strong>测试点，隐藏测试点不对外提供。
   导入的题目只有样例，学生提交只能过样例。请到后台「测试用例」为每题<strong>补全隐藏测试点</strong>才能正常判分。
   部分「输出固定字符串」的题（如 "I Love GPLT"）PTA 未给结构化样例，需你手动补一个测试点。
-  <br><b>⚠️ 格式说明：</b> 题面会被清理为纯文本，原题里的公式（LaTeX）/ 图片会显示为原始文本（不影响纯文字题判分）。
-  <br><b>⚠️ 若抓取报错：</b> 多为 Cookie 过期（重新复制一次 cURL）或服务端网络访问 pintia 受限；
+  <br><b>{{ icon('warn', 15) }} 格式说明：</b> 题面会被清理为纯文本，原题里的公式（LaTeX）/ 图片会显示为原始文本（不影响纯文字题判分）。
+  <br><b>{{ icon('warn', 15) }} 若抓取报错：</b> 多为 Cookie 过期（重新复制一次 cURL）或服务端网络访问 pintia 受限；
   此时可改用项目里的 <code>pta_import.py</code> 命令行脚本（在你电脑本地跑，不受服务器网络限制）。
-  <br><b>🔒 安全：</b> Cookie 属于你的登录凭据，仅在本次导入时使用，<strong>不会写入日志、不会回显、不会落库</strong>。导入完成后建议在 pintia 退出登录使其失效。
+  <br><b>{{ icon('shield', 15) }} 安全：</b> Cookie 属于你的登录凭据，仅在本次导入时使用，<strong>不会写入日志、不会回显、不会落库</strong>。导入完成后建议在 pintia 退出登录使其失效。
 </div>
 {% endblock %}

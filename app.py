@@ -527,7 +527,7 @@ def index():
         "market_items": _cnt("SELECT COUNT(*) AS c FROM market_items WHERE status='approved'"),
         "market_orders": _cnt("SELECT COUNT(*) AS c FROM market_orders"),
     }
-    return render_template("index.html", stats=stats)
+    return render_template("index.html", stats=stats, modules=PLATFORM_MODULES)
 
 
 @app.route("/problems")
@@ -1356,6 +1356,35 @@ def _git_commit():
 
 
 # ----------------------------- 二手交易市场 -----------------------------
+# 平台功能模块注册表：首页「功能中心」据此动态渲染。
+# 以后新增功能 = 往这里加一条（name/desc/icon/endpoint），再建路由与模板即可，无需改首页结构。
+PLATFORM_MODULES = [
+    {
+        "key": "learn",
+        "name": "学习中心",
+        "tag": "刷题 · 学编程",
+        "desc": "C / C++ / Python 在线判题，实时评测逐点反馈；按语言组织的路线与视频，从入门到进阶。",
+        "icon": "terminal",
+        "accent": "blue",
+        "buttons": [
+            {"text": "去刷题", "endpoint": "problems"},
+            {"text": "学习中心", "endpoint": "learn"},
+        ],
+    },
+    {
+        "key": "market",
+        "name": "二手市场",
+        "tag": "闲置 · 好物",
+        "desc": "教材、数码、生活好物，同学之间的闲置流转。发布、下单、线下自提或送寝，买卖都放心。",
+        "icon": "bag",
+        "accent": "violet",
+        "buttons": [
+            {"text": "逛逛市场", "endpoint": "market"},
+            {"text": "发布闲置", "endpoint": "market_post", "need_login": True},
+        ],
+    },
+]
+
 MARKET_CATEGORIES = ["教材教辅", "数码电子", "生活用品", "服饰鞋包", "运动户外", "美妆个护", "票券出行", "其他"]
 ORDER_STATUS_NAMES = {
     "pending": "待付款",

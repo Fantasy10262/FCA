@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}我的发布 · 二手市场{% endblock %}
+{% from "_icons.html" import icon %}
 {% block content %}
 
 <div class="section-title">
@@ -52,7 +53,7 @@
 </div>
 {% else %}
 <div class="empty-state">
-  <div class="big">📦</div>
+  <div class="big">{{ icon('box', 44) }}</div>
   <p>你还没有发布过商品。</p>
   <p><a href="{{ url_for('market_post') }}">发布第一件闲置 →</a></p>
 </div>

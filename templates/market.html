@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}二手市场 · FCA{% endblock %}
 {% block content %}
 
@@ -60,7 +61,7 @@
 </div>
 {% else %}
 <div class="empty-state">
-  <div class="big">🛍️</div>
+  <div class="big">{{ icon('bag', 44) }}</div>
   <p>还没有商品{% if q or cat and cat != '全部' %}匹配你的筛选{% else %}上架{% endif %}。</p>
   {% if current_user %}<p><a href="{{ url_for('market_post') }}">去发布第一件闲置 →</a></p>{% endif %}
 </div>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}校园平台 · FCA{% endblock %}
 {% block content %}
 
@@ -20,49 +21,45 @@
   </div>
 </section>
 
-<div class="section-title" id="features"><h1>两大板块</h1></div>
+<div class="section-title" id="features"><h1>功能中心</h1></div>
 <div class="cards">
-  <div class="card feat">
-    <div class="feat-ico">⌨️</div>
-    <h3>学习中心</h3>
-    <p class="muted">C / C++ / Python 在线判题，实时评测逐点反馈；按语言组织的路线与视频，从入门到进阶。</p>
+  {% for m in modules %}
+  <div class="card feat module-card">
+    <div class="feat-ico accent-{{ m.accent }}">{{ icon(m.icon, 26) }}</div>
+    <h3>{{ m.name }} <span class="mod-tag">{{ m.tag }}</span></h3>
+    <p class="muted">{{ m.desc }}</p>
     <div class="mrow" style="margin-top:12px;">
-      <a href="{{ url_for('problems') if current_user else url_for('login') }}" class="btn elastic">去刷题 <span class="arw">→</span></a>
-      <a href="{{ url_for('learn') if current_user else url_for('login') }}" class="btn ghost">学习中心</a>
+      {% for b in m.buttons %}
+        {% if b.get('need_login') and not current_user %}
+        <a href="{{ url_for('login') }}" class="btn {{ 'elastic' if loop.first else 'ghost' }}">登录后{{ b.text }} <span class="arw">→</span></a>
+        {% else %}
+        <a href="{{ url_for(b.endpoint) }}" class="btn {{ 'elastic' if loop.first else 'ghost' }}">{{ b.text }} <span class="arw">→</span></a>
+        {% endif %}
+      {% endfor %}
     </div>
   </div>
-  <div class="card feat">
-    <div class="feat-ico">🛍️</div>
-    <h3>二手市场</h3>
-    <p class="muted">教材、数码、生活好物，同学之间的闲置流转。发布、下单、线下自提或送寝，买卖都放心。</p>
-    <div class="mrow" style="margin-top:12px;">
-      <a href="{{ url_for('market') }}" class="btn elastic">逛逛市场 <span class="arw">→</span></a>
-      {% if current_user %}
-      <a href="{{ url_for('market_post') }}" class="btn ghost">发布闲置</a>
-      {% endif %}
-    </div>
-  </div>
+  {% endfor %}
 </div>
 
 <div class="section-title"><h1>平台特色</h1></div>
 <div class="cards">
   <div class="card feat">
-    <div class="feat-ico">⚡</div>
+    <div class="feat-ico accent-blue">{{ icon('bolt', 24) }}</div>
     <h3>实时评测</h3>
     <p class="muted">提交即测，逐测试点返回通过与耗时，错误现场一目了然。</p>
   </div>
   <div class="card feat">
-    <div class="feat-ico">📈</div>
+    <div class="feat-ico accent-cyan">{{ icon('chart', 24) }}</div>
     <h3>进度可视化</h3>
     <p class="muted">已通过 / 尝试中 / 通过率一目了然，学习轨迹清晰可见。</p>
   </div>
   <div class="card feat">
-    <div class="feat-ico">🔒</div>
+    <div class="feat-ico accent-violet">{{ icon('shield', 24) }}</div>
     <h3>审核上架</h3>
     <p class="muted">二手商品管理员审核后才展示，过滤垃圾信息，交易更干净。</p>
   </div>
   <div class="card feat">
-    <div class="feat-ico">🤝</div>
+    <div class="feat-ico accent-green">{{ icon('send', 24) }}</div>
     <h3>订单流转</h3>
     <p class="muted">下单 → 付款 → 交付 → 收货全流程留痕，线下当面交易更安心。</p>
   </div>

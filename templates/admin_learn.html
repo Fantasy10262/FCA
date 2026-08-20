@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}学习中心管理{% endblock %}
+{% from "_icons.html" import icon %}
 {% block content %}
 <div class="section-title">
   <h1>学习中心</h1>
@@ -108,7 +109,7 @@
 
 {% if not langs %}
   <div class="empty">
-    <div class="empty-ico">📚</div>
+    <div class="empty-ico">{{ icon('book', 42) }}</div>
     <p>学习中心还没有任何语言，使用上方「添加新语言」开始。</p>
   </div>
 {% endif %}

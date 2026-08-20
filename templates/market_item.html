@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 {% block title %}{{ item.title }} · 二手市场{% endblock %}
 {% block content %}
 
@@ -50,7 +51,7 @@
             <button class="btn elastic" type="submit">立即下单</button>
           </div>
         </form>
-        <div class="tipbox">💡 流程：下单 → 扫码付给卖家 → 我已付款 → 线下自提/送寝 → 确认收货。平台不代管资金，请当面确认商品。</div>
+        <div class="tipbox">{{ icon('info', 15) }} 流程：下单 → 扫码付给卖家 → 我已付款 → 线下自提/送寝 → 确认收货。平台不代管资金，请当面确认商品。</div>
       {% endif %}
     {% else %}
       <a class="btn elastic" href="{{ url_for('login') }}">登录后查看联系方式并下单</a>

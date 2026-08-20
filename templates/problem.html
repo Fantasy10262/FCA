@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ problem.title }}{% endblock %}
+{% from "_icons.html" import icon %}
 {% block content %}
 <div class="pb-head">
   <h1 class="ptitle">{{ problem.title }}
@@ -60,7 +61,7 @@
         {% if not available_langs.get(lang) %}{{ missing.append(lang_names[lang]) or "" }}{% endif %}
       {% endfor %}
       {% if missing %}
-      <p class="warn">⚠ 以下语言本机未安装编译器，暂无法判题：{{ missing|join("、") }}。请先安装 MinGW-w64(gcc/g++)。</p>
+      <p class="warn">{{ icon('warn', 15) }} 以下语言本机未安装编译器，暂无法判题：{{ missing|join("、") }}。请先安装 MinGW-w64(gcc/g++)。</p>
       {% endif %}
 
       <div class="editor-label">

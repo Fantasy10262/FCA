@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}题目列表{% endblock %}
+{% from "_icons.html" import icon %}
 {% block content %}
 
 <section class="dash hero">
@@ -62,7 +63,7 @@
 <p class="empty" id="noResult" style="display:none;">没有匹配的题目，换个关键词试试～</p>
 {% else %}
 <div class="empty">
-  <div class="empty-ico">📭</div>
+  <div class="empty-ico">{{ icon('mail', 42) }}</div>
   <p>暂无题目。</p>
   <p class="muted">请联系管理员在后台「题目管理」中添加，或用「导入题目」批量上传。</p>
 </div>

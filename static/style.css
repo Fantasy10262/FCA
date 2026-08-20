@@ -830,3 +830,28 @@ html { scroll-behavior: smooth; }
 .am-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .am-table th, .am-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
 .am-table th { color: var(--muted); font-weight: 600; font-size: 12px; }
+
+/* ============ SVG 图标系统（替代 emoji 图标） ============ */
+.ico { display: inline-block; vertical-align: -0.22em; flex-shrink: 0; }
+.feat-ico { display: flex; align-items: center; justify-content: flex-start; min-height: 30px; }
+.feat-ico .ico { color: var(--accent); }
+.feat-ico.accent-blue .ico { color: #6E8BFF; }
+.feat-ico.accent-violet .ico { color: #8E7CFF; }
+.feat-ico.accent-cyan .ico { color: #34E0D2; }
+.feat-ico.accent-green .ico { color: #5FD39A; }
+.feat-ico.accent-amber .ico { color: #FFC24B; }
+.empty-ico .ico, .empty-state .big .ico { color: var(--muted); }
+/* 排名徽章（替代奖牌 emoji） */
+.rank-badge { display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%; font-size: 12px; font-weight: 800;
+  color: var(--accent-ink); background: var(--grad-cool); }
+.rank-badge.r1 { background: linear-gradient(135deg, #FFD76A, #F5A623); }
+.rank-badge.r2 { background: linear-gradient(135deg, #E3E8F2, #A7B2C8); }
+.rank-badge.r3 { background: linear-gradient(135deg, #F0B68A, #C97E4E); }
+/* 模块卡标签 */
+.mod-tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line);
+  padding: 2px 8px; border-radius: 999px; vertical-align: 2px; margin-left: 6px; font-weight: 600; }
+/* 按钮 / 提示框内图标对齐 */
+.btn .ico, .mrow .ico { vertical-align: -0.18em; margin-right: 2px; }
+.tipbox .ico, .warn .ico { vertical-align: -0.18em; margin-right: 4px; }
+.warn { display: flex; align-items: flex-start; gap: 6px; }

@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}题目集{% endblock %}
+{% from "_icons.html" import icon %}
 {% block content %}
 
 <section class="dash">
   <div class="dash-left">
-    <h1 class="dash-hi">题目集 <span class="wave">📚</span></h1>
+    <h1 class="dash-hi">题目集 {{ icon('book', 26) }}</h1>
     <p class="muted">欢迎来到 Fantasy Coding Arena，从题目集开始你的专项训练吧。</p>
   </div>
 </section>

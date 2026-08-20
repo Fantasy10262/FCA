@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ s.title }}{% endblock %}
+{% from "_icons.html" import icon, rank_badge %}
 {% block content %}
 <a href="{{ url_for('sets') }}">← 题目集</a>
 <h1>{{ s.title }}</h1>
@@ -8,7 +9,7 @@
 {% if my %}
 <section class="dash">
   <div class="dash-left">
-    <h1 class="dash-hi">我的完成度 {{ my.pct }}% <span class="wave">🎯</span></h1>
+    <h1 class="dash-hi">我的完成度 {{ my.pct }}% {{ icon('target', 26) }}</h1>
     <p class="muted">已解决 {{ my.solved }} / {{ my.total }} 道题 · 当前排名第 {{ my.rank }} 名（共 {{ n_students }} 人）</p>
   </div>
   <div class="dash-stats">
@@ -54,7 +55,7 @@
   <tbody>
     {% for r in ranking %}
     <tr class="{% if r.uid == current_user.id %}me{% endif %} {% if loop.index0 < 3 %}top{{ loop.index0 + 1 }}{% endif %}">
-      <td class="rank">{% if loop.index0 == 0 %}🥇{% elif loop.index0 == 1 %}🥈{% elif loop.index0 == 2 %}🥉{% else %}{{ r.rank }}{% endif %}</td>
+      <td class="rank">{% if loop.index0 == 0 %}{{ rank_badge(1) }}{% elif loop.index0 == 1 %}{{ rank_badge(2) }}{% elif loop.index0 == 2 %}{{ rank_badge(3) }}{% else %}{{ r.rank }}{% endif %}</td>
       <td class="muted">{{ r.sid }}</td>
       <td><strong>{% if r.uid == current_user.id %}{{ r.name }}（我）{% else %}{{ r.name }}{% endif %}</strong></td>
       <td>{{ r.solved }} / {{ r.total }}</td>
