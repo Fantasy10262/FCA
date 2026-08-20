@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ item.title }} · 二手市场{% endblock %}
+{% block content %}
+
+<p style="margin-bottom:6px;"><a href="{{ url_for('market') }}">← 返回二手市场</a></p>
+
+<div class="mkt-detail">
+  <div class="mgal">
+    {% if item.images_list %}
+    <div class="mgal-main"><img id="galMain" src="{{ item.images_list[0] }}" alt="{{ item.title }}"></div>
+    {% if item.images_list|length > 1 %}
+    <div class="mgal-thumbs">
+      {% for img in item.images_list %}
+        <img src="{{ img }}" class="{% if loop.first %}on{% endif %}" onclick="document.getElementById('galMain').src=this.src;document.querySelectorAll('.mgal-thumbs img').forEach(i=>i.classList.remove('on'));this.classList.add('on')" alt="图{{ loop.index }}">
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="mcard-noimg" style="aspect-ratio:4/3;border-radius:var(--radius);">暂无图片</div>
+    {% endif %}
+  </div>
+
+  <div class="mkt-info">
+    <h1 style="margin-bottom:2px;">{{ item.title }}</h1>
+    <div class="mkt-price-big">{{ item.price }}</div>
+    <div><span class="mtag">{{ item.category }}</span></div>
+
+    {% if item.description %}
+    <pre class="mkt-desc">{{ item.description }}</pre>
+    {% endif %}
+
+    <dl class="kv">
+      <dt>卖家</dt><dd>{{ item.seller.name }}（{{ item.seller.student_id }}）</dd>
+      <dt>发布</dt><dd>{{ item.created_at }}</dd>
+    </dl>
+
+    {% if current_user %}
+      {% if current_user.id == item.user_id %}
+        <div class="tipbox">这是你发布的商品。<a href="{{ url_for('market_my') }}">去「我的发布」管理 →</a></div>
+      {% elif my_order %}
+        <div class="tipbox">
+          你已对该商品下单，当前状态：<span class="badge {{ my_order.status }}">{{ status_names.get(my_order.status, my_order.status) }}</span>
+          <a href="{{ url_for('market_orders') }}">去「我的订单」继续处理 →</a>
+        </div>
+      {% else %}
+        <form method="post" action="{{ url_for('market_order_create', iid=item.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="mkt-search" style="width:100%;margin-bottom:8px;" type="text" name="note" maxlength="200" placeholder="给卖家留言（可选），如：晚上在几号楼下取">
+          <div class="mrow">
+            <button class="btn elastic" type="submit">立即下单</button>
+          </div>
+        </form>
+        <div class="tipbox">💡 流程：下单 → 扫码付给卖家 → 我已付款 → 线下自提/送寝 → 确认收货。平台不代管资金，请当面确认商品。</div>
+      {% endif %}
+    {% else %}
+      <a class="btn elastic" href="{{ url_for('login') }}">登录后查看联系方式并下单</a>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

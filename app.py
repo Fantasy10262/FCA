@@ -7,6 +7,9 @@ PTA 风格在线判题平台（Flask + SQLite）
 import os
 import re
 import json
+import time
+import uuid
+from datetime import datetime
 from functools import wraps
 
 from db import connect, is_postgres, PG_SCHEMA, SQLITE_SCHEMA, IntegrityError
@@ -509,10 +512,6 @@ def profile():
 # ----------------------------- 路由：学生端 -----------------------------
 @app.route("/")
 def index():
-    if "user" in session:
-        if session["user"]["role"] == "admin":
-            return redirect(url_for("admin_dashboard"))
-        return redirect(url_for("problems"))
     db = get_db()
     def _cnt(sql):
         try:
@@ -525,6 +524,8 @@ def index():
         "submissions": _cnt("SELECT COUNT(*) AS c FROM submissions"),
         "languages": _cnt("SELECT COUNT(*) AS c FROM learn_languages"),
         "students": _cnt("SELECT COUNT(*) AS c FROM users"),
+        "market_items": _cnt("SELECT COUNT(*) AS c FROM market_items WHERE status='approved'"),
+        "market_orders": _cnt("SELECT COUNT(*) AS c FROM market_orders"),
     }
     return render_template("index.html", stats=stats)
 
@@ -1352,6 +1353,499 @@ def _git_commit():
         ).decode().strip()
     except Exception:
         return "unknown"
+
+
+# ----------------------------- 二手交易市场 -----------------------------
+MARKET_CATEGORIES = ["教材教辅", "数码电子", "生活用品", "服饰鞋包", "运动户外", "美妆个护", "票券出行", "其他"]
+ORDER_STATUS_NAMES = {
+    "pending": "待付款",
+    "paid": "已付款",
+    "delivered": "已交付",
+    "completed": "已完成",
+    "cancelled": "已取消",
+}
+ITEM_STATUS_NAMES = {
+    "pending": "待审核",
+    "approved": "已上架",
+    "rejected": "已拒绝",
+    "closed": "已下架",
+}
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+SUPABASE_BUCKET = os.environ.get("SUPABASE_BUCKET", "market")
+
+
+def save_upload_image(file_storage):
+    """保存上传的图片，返回可公开访问的 URL。
+    优先上传 Supabase Storage（生产，Railway 文件系统不持久）；未配置时存本地 static/uploads（开发用）。"""
+    if not file_storage or not file_storage.filename:
+        return None
+    ext = os.path.splitext(file_storage.filename)[1].lower()
+    if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
+        raise ValueError("仅支持 png/jpg/jpeg/gif/webp 图片")
+    data = file_storage.read()
+    if len(data) > 4 * 1024 * 1024:
+        raise ValueError("单张图片不能超过 4MB")
+    name = "%d_%s%s" % (int(time.time()), uuid.uuid4().hex[:8], ext)
+    if SUPABASE_URL and SUPABASE_ANON_KEY:
+        import requests as _req
+        url = SUPABASE_URL.rstrip("/") + "/storage/v1/object/" + SUPABASE_BUCKET + "/" + name
+        r = _req.post(
+            url,
+            headers={
+                "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+                "apikey": SUPABASE_ANON_KEY,
+                "Content-Type": "application/octet-stream",
+            },
+            data=data,
+            timeout=30,
+        )
+        if r.status_code not in (200, 201):
+            raise ValueError("图片上传失败: " + (r.text or "")[:120])
+        return SUPABASE_URL.rstrip("/") + "/storage/v1/object/public/" + SUPABASE_BUCKET + "/" + name
+    folder = os.path.join(app.static_folder, "uploads", "market")
+    os.makedirs(folder, exist_ok=True)
+    with open(os.path.join(folder, name), "wb") as f:
+        f.write(data)
+    return url_for("static", filename="uploads/market/" + name)
+
+
+def get_market_item(iid):
+    db = get_db()
+    r = db.execute("SELECT * FROM market_items WHERE id=?", (iid,)).fetchone()
+    if not r:
+        return None
+    d = row_to_dict(r)
+    d["images_list"] = json.loads(d["images"] or "[]")
+    s = db.execute("SELECT id, name, student_id FROM users WHERE id=?", (d["user_id"],)).fetchone()
+    d["seller"] = row_to_dict(s) if s else {}
+    return d
+
+
+def market_counts(db):
+    rows = db.execute(
+        "SELECT category, COUNT(*) c FROM market_items WHERE status='approved' GROUP BY category"
+    ).fetchall()
+    by_cat = {r["category"]: r["c"] for r in rows}
+    return {"total": sum(by_cat.values()), "by_cat": by_cat}
+
+
+def _fill_market_order(db, o, uid=None):
+    d = row_to_dict(o)
+    it = db.execute("SELECT id, title, images, pay_qr FROM market_items WHERE id=?", (d["item_id"],)).fetchone()
+    d["item"] = row_to_dict(it) if it else {}
+    if d["item"]:
+        imgs = json.loads(d["item"].get("images") or "[]")
+        d["item"]["cover"] = imgs[0] if imgs else ""
+    b = db.execute("SELECT name, student_id FROM users WHERE id=?", (d["buyer_id"],)).fetchone()
+    s = db.execute("SELECT name, student_id FROM users WHERE id=?", (d["seller_id"],)).fetchone()
+    d["buyer"] = row_to_dict(b) if b else {}
+    d["seller"] = row_to_dict(s) if s else {}
+    if uid is not None:
+        d["peer"] = d["seller"] if d["buyer_id"] == uid else d["buyer"]
+    return d
+
+
+@app.route("/market")
+def market():
+    db = get_db()
+    q = (request.args.get("q") or "").strip()
+    cat = (request.args.get("cat") or "").strip()
+    sort = request.args.get("sort") or "new"
+    sql = "SELECT * FROM market_items WHERE status='approved'"
+    args = []
+    if q:
+        sql += " AND (title LIKE ? OR description LIKE ?)"
+        like = "%" + q + "%"
+        args += [like, like]
+    if cat and cat != "全部" and cat in MARKET_CATEGORIES:
+        sql += " AND category=?"
+        args.append(cat)
+    if sort == "price_asc":
+        sql += " ORDER BY CAST(price AS REAL), id DESC"
+    elif sort == "price_desc":
+        sql += " ORDER BY CAST(price AS REAL) DESC, id DESC"
+    else:
+        sql += " ORDER BY id DESC"
+    items = []
+    for r in db.execute(sql, args).fetchall():
+        d = row_to_dict(r)
+        imgs = json.loads(d["images"] or "[]")
+        d["cover"] = imgs[0] if imgs else ""
+        s = db.execute("SELECT name FROM users WHERE id=?", (d["user_id"],)).fetchone()
+        d["seller_name"] = s["name"] if s else ""
+        d["status_name"] = ITEM_STATUS_NAMES.get(d["status"], d["status"])
+        items.append(d)
+    return render_template(
+        "market.html",
+        items=items, categories=MARKET_CATEGORIES,
+        q=q, cat=cat, sort=sort, market_counts=market_counts(db),
+    )
+
+
+@app.route("/market/item/<int:iid>")
+def market_item(iid):
+    db = get_db()
+    item = get_market_item(iid)
+    uid = session["user"]["id"] if session.get("user") else None
+    is_owner = uid is not None and item is not None and item["user_id"] == uid
+    if not item or (item["status"] != "approved" and not is_owner):
+        flash("商品不存在或已下架", "warning")
+        return redirect(url_for("market"))
+    my_order = None
+    if session.get("user"):
+        o = db.execute(
+            "SELECT * FROM market_orders WHERE item_id=? AND buyer_id=? AND status NOT IN ('cancelled') "
+            "ORDER BY id DESC LIMIT 1",
+            (iid, session["user"]["id"]),
+        ).fetchone()
+        if o:
+            my_order = row_to_dict(o)
+    return render_template(
+        "market_item.html", item=item, categories=MARKET_CATEGORIES,
+        my_order=my_order, status_names=ORDER_STATUS_NAMES,
+        market_counts=market_counts(db),
+    )
+
+
+def _market_form_errors(form):
+    """校验发布/编辑表单，返回错误列表。"""
+    errors = []
+    title = (form.get("title") or "").strip()
+    price = (form.get("price") or "").strip()
+    desc = (form.get("description") or "").strip()
+    if not title:
+        errors.append("标题必填")
+    elif len(title) > 60:
+        errors.append("标题不超过 60 字")
+    if not price:
+        errors.append("价格必填")
+    else:
+        try:
+            if float(price) < 0:
+                errors.append("价格不能为负数")
+        except ValueError:
+            errors.append("价格格式不对（填数字即可，如 15 或 15.5）")
+    if len(desc) > 2000:
+        errors.append("描述不超过 2000 字")
+    return errors, title, price, desc
+
+
+def _market_upload_images(request):
+    """收集图片：优先上传文件（最多3张），不足用外链 URL 补。返回 URL 列表。"""
+    images = []
+    files = request.files.getlist("images")
+    for f in files[:3]:
+        if f and f.filename:
+            url = save_upload_image(f)
+            if url:
+                images.append(url)
+    ext_urls = [
+        u.strip() for u in (request.form.get("image_urls") or "").replace("\r", "\n").split("\n")
+        if u.strip()
+    ]
+    for u in ext_urls[: max(0, 3 - len(images))]:
+        if u.startswith(("http://", "https://")):
+            images.append(u)
+    return images
+
+
+@app.route("/market/post", methods=["GET", "POST"])
+@login_required
+def market_post():
+    if request.method == "POST":
+        errors, title, price, desc = _market_form_errors(request.form)
+        category = (request.form.get("category") or "其他").strip()
+        if category not in MARKET_CATEGORIES:
+            category = "其他"
+        if errors:
+            for e in errors:
+                flash(e, "danger")
+            return render_template(
+                "market_post.html", form=request.form, categories=MARKET_CATEGORIES,
+                is_edit=False, item=None), 400
+        try:
+            images = _market_upload_images(request)
+        except ValueError as e:
+            flash(str(e), "danger")
+            return render_template(
+                "market_post.html", form=request.form, categories=MARKET_CATEGORIES,
+                is_edit=False, item=None), 400
+        if not images:
+            flash("请至少上传一张图片或填写图片外链", "danger")
+            return render_template(
+                "market_post.html", form=request.form, categories=MARKET_CATEGORIES,
+                is_edit=False, item=None), 400
+        db = get_db()
+        db.execute(
+            "INSERT INTO market_items (user_id, title, description, category, price, contact, pay_qr, images) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (
+                session["user"]["id"], title, desc, category, price,
+                (request.form.get("contact") or "").strip()[:120],
+                (request.form.get("pay_qr") or "").strip(),
+                json.dumps(images, ensure_ascii=False),
+            ),
+        )
+        db.commit()
+        flash("发布成功！等待管理员审核通过后即可被同学看到", "success")
+        return redirect(url_for("market_my"))
+    return render_template(
+        "market_post.html", form=None, categories=MARKET_CATEGORIES, is_edit=False, item=None)
+
+
+@app.route("/market/post/<int:iid>/edit", methods=["GET", "POST"])
+@login_required
+def market_post_edit(iid):
+    db = get_db()
+    item = get_market_item(iid)
+    if not item or item["user_id"] != session["user"]["id"]:
+        flash("无权操作", "danger")
+        return redirect(url_for("market"))
+    if request.method == "POST":
+        errors, title, price, desc = _market_form_errors(request.form)
+        category = (request.form.get("category") or "其他").strip()
+        if category not in MARKET_CATEGORIES:
+            category = "其他"
+        if errors:
+            for e in errors:
+                flash(e, "danger")
+            return render_template(
+                "market_post.html", form=request.form, categories=MARKET_CATEGORIES,
+                is_edit=True, item=item), 400
+        try:
+            images = _market_upload_images(request)
+        except ValueError as e:
+            flash(str(e), "danger")
+            return render_template(
+                "market_post.html", form=request.form, categories=MARKET_CATEGORIES,
+                is_edit=True, item=item), 400
+        if images:
+            db.execute(
+                "UPDATE market_items SET title=?, description=?, category=?, price=?, contact=?, pay_qr=?, "
+                "images=?, status='pending', reject_reason='' WHERE id=?",
+                (
+                    title, desc, category, price,
+                    (request.form.get("contact") or "").strip()[:120],
+                    (request.form.get("pay_qr") or "").strip(),
+                    json.dumps(images, ensure_ascii=False), iid,
+                ),
+            )
+        else:
+            db.execute(
+                "UPDATE market_items SET title=?, description=?, category=?, price=?, contact=?, pay_qr=?, "
+                "status='pending', reject_reason='' WHERE id=?",
+                (
+                    title, desc, category, price,
+                    (request.form.get("contact") or "").strip()[:120],
+                    (request.form.get("pay_qr") or "").strip(), iid,
+                ),
+            )
+        db.commit()
+        flash("已保存修改，需重新审核", "success")
+        return redirect(url_for("market_my"))
+    form = {
+        "title": item["title"], "description": item["description"],
+        "category": item["category"], "price": item["price"],
+        "contact": item["contact"], "pay_qr": item["pay_qr"],
+        "image_urls": "\n".join(item["images_list"]),
+    }
+    return render_template(
+        "market_post.html", form=form, categories=MARKET_CATEGORIES, is_edit=True, item=item)
+
+
+@app.route("/market/post/<int:iid>/close", methods=["POST"])
+@login_required
+def market_post_close(iid):
+    db = get_db()
+    item = db.execute("SELECT * FROM market_items WHERE id=?", (iid,)).fetchone()
+    if not item or item["user_id"] != session["user"]["id"]:
+        flash("无权操作", "danger")
+        return redirect(url_for("market"))
+    db.execute("UPDATE market_items SET status='closed' WHERE id=?", (iid,))
+    db.commit()
+    flash("商品已下架", "success")
+    return redirect(url_for("market_my"))
+
+
+@app.route("/market/order/<int:iid>", methods=["POST"])
+@login_required
+def market_order_create(iid):
+    db = get_db()
+    item = db.execute("SELECT * FROM market_items WHERE id=?", (iid,)).fetchone()
+    if not item or item["status"] != "approved":
+        flash("商品不可购买", "danger")
+        return redirect(url_for("market"))
+    uid = session["user"]["id"]
+    if item["user_id"] == uid:
+        flash("不能购买自己发布的商品", "warning")
+        return redirect(url_for("market_item", iid=iid))
+    exist = db.execute(
+        "SELECT id FROM market_orders WHERE item_id=? AND buyer_id=? AND status IN ('pending','paid','delivered')",
+        (iid, uid),
+    ).fetchone()
+    if exist:
+        flash("你已对该商品下单，请到「我的订单」继续处理", "warning")
+        return redirect(url_for("market_orders"))
+    note = (request.form.get("note") or "").strip()[:200]
+    db.execute(
+        "INSERT INTO market_orders (item_id, buyer_id, seller_id, price, note) VALUES (?,?,?,?,?)",
+        (iid, uid, item["user_id"], item["price"], note),
+    )
+    db.commit()
+    flash("下单成功！请扫码付款后点击「我已付款」，然后线下自提或等卖家送到楼下", "success")
+    return redirect(url_for("market_orders"))
+
+
+@app.route("/market/order/<int:oid>/<action>", methods=["POST"])
+@login_required
+def market_order_action(oid, action):
+    db = get_db()
+    o = db.execute("SELECT * FROM market_orders WHERE id=?", (oid,)).fetchone()
+    if not o:
+        flash("订单不存在", "danger")
+        return redirect(url_for("market_orders"))
+    uid = session["user"]["id"]
+    is_buyer = o["buyer_id"] == uid
+    is_seller = o["seller_id"] == uid
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if action == "pay":
+        if not is_buyer or o["status"] != "pending":
+            flash("操作不允许", "danger")
+        else:
+            db.execute("UPDATE market_orders SET status='paid', paid_at=? WHERE id=?", (now, oid))
+            db.commit()
+            flash("已确认付款，等待卖家交付", "success")
+    elif action == "deliver":
+        if not is_seller or o["status"] != "paid":
+            flash("操作不允许", "danger")
+        else:
+            db.execute("UPDATE market_orders SET status='delivered', delivered_at=? WHERE id=?", (now, oid))
+            db.commit()
+            flash("已标记交付，等待买家确认收货", "success")
+    elif action == "complete":
+        if not is_buyer or o["status"] != "delivered":
+            flash("操作不允许", "danger")
+        else:
+            db.execute("UPDATE market_orders SET status='completed', completed_at=? WHERE id=?", (now, oid))
+            db.commit()
+            flash("交易完成，感谢使用校园二手市场！", "success")
+    elif action == "cancel":
+        if o["status"] in ("completed", "cancelled"):
+            flash("该订单已结束，无法取消", "warning")
+        elif not (is_buyer or is_seller):
+            flash("无权操作", "danger")
+        else:
+            db.execute("UPDATE market_orders SET status='cancelled', cancelled_at=? WHERE id=?", (now, oid))
+            db.commit()
+            flash("订单已取消", "success")
+    else:
+        flash("未知操作", "danger")
+    return redirect(request.referrer or url_for("market_orders"))
+
+
+@app.route("/market/my")
+@login_required
+def market_my():
+    db = get_db()
+    uid = session["user"]["id"]
+    items = []
+    for r in db.execute("SELECT * FROM market_items WHERE user_id=? ORDER BY id DESC", (uid,)).fetchall():
+        d = row_to_dict(r)
+        imgs = json.loads(d["images"] or "[]")
+        d["cover"] = imgs[0] if imgs else ""
+        d["status_name"] = ITEM_STATUS_NAMES.get(d["status"], d["status"])
+        d["order_count"] = db.execute(
+            "SELECT COUNT(*) c FROM market_orders WHERE item_id=? AND status NOT IN ('cancelled')",
+            (d["id"],),
+        ).fetchone()["c"]
+        items.append(d)
+    return render_template("market_my.html", items=items, categories=MARKET_CATEGORIES)
+
+
+@app.route("/market/orders")
+@login_required
+def market_orders():
+    db = get_db()
+    uid = session["user"]["id"]
+    bought = [
+        _fill_market_order(db, o, uid)
+        for o in db.execute("SELECT * FROM market_orders WHERE buyer_id=? ORDER BY id DESC", (uid,)).fetchall()
+    ]
+    sold = [
+        _fill_market_order(db, o, uid)
+        for o in db.execute("SELECT * FROM market_orders WHERE seller_id=? ORDER BY id DESC", (uid,)).fetchall()
+    ]
+    return render_template("market_orders.html", bought=bought, sold=sold, status_names=ORDER_STATUS_NAMES)
+
+
+@app.route("/admin/market")
+@admin_required
+def admin_market():
+    db = get_db()
+    pending, all_items = [], []
+    for r in db.execute("SELECT * FROM market_items ORDER BY id DESC").fetchall():
+        d = row_to_dict(r)
+        imgs = json.loads(d["images"] or "[]")
+        d["cover"] = imgs[0] if imgs else ""
+        d["images_list"] = imgs
+        s = db.execute("SELECT name, student_id FROM users WHERE id=?", (d["user_id"],)).fetchone()
+        d["seller"] = row_to_dict(s) if s else {}
+        d["status_name"] = ITEM_STATUS_NAMES.get(d["status"], d["status"])
+        if d["status"] == "pending":
+            pending.append(d)
+        all_items.append(d)
+    orders = []
+    for o in db.execute("SELECT * FROM market_orders ORDER BY id DESC LIMIT 50").fetchall():
+        orders.append(_fill_market_order(db, o))
+    return render_template(
+        "admin_market.html", pending=pending, items=all_items, orders=orders,
+        status_names=ORDER_STATUS_NAMES, categories=MARKET_CATEGORIES,
+    )
+
+
+@app.route("/admin/market/<int:iid>/approve", methods=["POST"])
+@admin_required
+def admin_market_approve(iid):
+    db = get_db()
+    item = db.execute("SELECT * FROM market_items WHERE id=?", (iid,)).fetchone()
+    if not item:
+        flash("商品不存在", "danger")
+        return redirect(url_for("admin_market"))
+    db.execute("UPDATE market_items SET status='approved', reject_reason='' WHERE id=?", (iid,))
+    db.commit()
+    flash("已审核通过并上架", "success")
+    return redirect(url_for("admin_market"))
+
+
+@app.route("/admin/market/<int:iid>/reject", methods=["POST"])
+@admin_required
+def admin_market_reject(iid):
+    db = get_db()
+    item = db.execute("SELECT * FROM market_items WHERE id=?", (iid,)).fetchone()
+    if not item:
+        flash("商品不存在", "danger")
+        return redirect(url_for("admin_market"))
+    reason = (request.form.get("reason") or "").strip()[:200]
+    db.execute("UPDATE market_items SET status='rejected', reject_reason=? WHERE id=?", (reason, iid))
+    db.commit()
+    flash("已拒绝该商品" + ("：" + reason if reason else ""), "warning")
+    return redirect(url_for("admin_market"))
+
+
+@app.route("/admin/market/<int:iid>/delete", methods=["POST"])
+@admin_required
+def admin_market_delete(iid):
+    db = get_db()
+    item = db.execute("SELECT * FROM market_items WHERE id=?", (iid,)).fetchone()
+    if not item:
+        flash("商品不存在", "danger")
+        return redirect(url_for("admin_market"))
+    db.execute("DELETE FROM market_orders WHERE item_id=?", (iid,))
+    db.execute("DELETE FROM market_items WHERE id=?", (iid,))
+    db.commit()
+    flash("已删除商品及其关联订单", "success")
+    return redirect(url_for("admin_market"))
 
 
 @app.route("/healthz")

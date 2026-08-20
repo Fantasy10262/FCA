@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}二手市场管理 · FCA{% endblock %}
+{% block content %}
+
+<div class="section-title"><h1>二手市场管理</h1></div>
+
+<div class="tabs">
+  <div class="tab on" data-tab="pending" onclick="switchTab('pending')">待审核（{{ pending|length }}）</div>
+  <div class="tab" data-tab="items" onclick="switchTab('items')">全部商品（{{ items|length }}）</div>
+  <div class="tab" data-tab="orders" onclick="switchTab('orders')">最近订单（{{ orders|length }}）</div>
+</div>
+
+<div id="tab-pending">
+  {% if pending %}
+    {% for it in pending %}
+    <div class="admin-mitem">
+      {% if it.cover %}<img src="{{ it.cover }}" alt="">{% endif %}
+      <div class="ami-main">
+        <div class="oc-top">
+          <b>{{ it.title }}</b>
+          <span class="mprice" style="font-size:15px;">{{ it.price }}</span>
+          <span class="mtag">{{ it.category }}</span>
+          <span class="badge pending-item">待审核</span>
+        </div>
+        <div class="oc-meta">卖家：{{ it.seller.name }}（{{ it.seller.student_id }}） · {{ it.created_at }}</div>
+        {% if it.contact %}<div class="oc-meta">联系方式：{{ it.contact }}</div>{% endif %}
+        {% if it.description %}<pre class="ami-desc">{{ it.description }}</pre>{% endif %}
+        {% if it.images_list|length > 1 %}<div class="oc-meta">共 {{ it.images_list|length }} 张图</div>{% endif %}
+        <div class="mrow" style="margin-top:10px;">
+          <form method="post" action="{{ url_for('admin_market_approve', iid=it.id) }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn elastic" type="submit">✅ 通过并上架</button>
+          </form>
+          <form method="post" action="{{ url_for('admin_market_reject', iid=it.id) }}" style="display:inline;" id="rej-{{ it.id }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="reason" value="">
+            <button class="btn ghost" type="button" onclick="rejectItem({{ it.id }})">❌ 拒绝</button>
+          </form>
+          <form method="post" action="{{ url_for('admin_market_delete', iid=it.id) }}" style="display:inline;"
+                onsubmit="return confirm('确定删除该商品及其订单？此操作不可恢复。');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn ghost" type="submit">🗑 删除</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state"><div class="big">🎉</div><p>没有待审核的商品。</p></div>
+  {% endif %}
+</div>
+
+<div id="tab-items" style="display:none;">
+  <div class="panel" style="overflow-x:auto;">
+    <table class="am-table">
+      <tr><th>ID</th><th>标题</th><th>卖家</th><th>分类</th><th>价格</th><th>状态</th><th>操作</th></tr>
+      {% for it in items %}
+      <tr>
+        <td>{{ it.id }}</td>
+        <td><a href="{{ url_for('market_item', iid=it.id) }}">{{ it.title[:24] }}</a></td>
+        <td>{{ it.seller.name }}</td>
+        <td>{{ it.category }}</td>
+        <td>¥{{ it.price }}</td>
+        <td><span class="badge {{ it.status }}">{{ it.status_name }}</span></td>
+        <td>
+          {% if it.status in ('rejected', 'closed') %}
+          <form method="post" action="{{ url_for('admin_market_approve', iid=it.id) }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn ghost" type="submit">重新上架</button>
+          </form>
+          {% endif %}
+          <form method="post" action="{{ url_for('admin_market_delete', iid=it.id) }}" style="display:inline;"
+                onsubmit="return confirm('确定删除该商品？');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn ghost" type="submit">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<div id="tab-orders" style="display:none;">
+  <div class="panel" style="overflow-x:auto;">
+    <table class="am-table">
+      <tr><th>ID</th><th>商品</th><th>买家</th><th>卖家</th><th>价格</th><th>状态</th><th>下单时间</th></tr>
+      {% for o in orders %}
+      <tr>
+        <td>{{ o.id }}</td>
+        <td>{{ o.item.title or '（已删除）' }}</td>
+        <td>{{ o.buyer.name }}（{{ o.buyer.student_id }}）</td>
+        <td>{{ o.seller.name }}</td>
+        <td>¥{{ o.price }}</td>
+        <td><span class="badge {{ o.status }}">{{ status_names.get(o.status, o.status) }}</span></td>
+        <td>{{ o.created_at }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+  ['pending', 'items', 'orders'].forEach(k => {
+    document.getElementById('tab-' + k).style.display = k === name ? '' : 'none';
+  });
+}
+function rejectItem(id) {
+  var reason = prompt('填写拒绝原因（会展示给卖家）：', '');
+  if (reason === null) return;
+  var form = document.getElementById('rej-' + id);
+  form.querySelector('input[name="reason"]').value = reason;
+  form.submit();
+}
+</script>
+
+{% endblock %}

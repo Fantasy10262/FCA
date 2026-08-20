@@ -16,3 +16,6 @@ flask_run.log
 # 部署证书与 ACME 挑战目录（含私钥，严禁入库）
 deploy/certs/
 deploy/www/
+
+# 本地图片上传兜底目录（生产走 Supabase Storage，本地仅开发用）
+static/uploads/
