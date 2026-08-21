@@ -32,8 +32,36 @@
 
     <dl class="kv">
       <dt>卖家</dt><dd>{{ item.seller.name }}（{{ item.seller.student_id }}）</dd>
+      <dt>信用</dt>
+      <dd>
+        {% if seller_credit.trades %}{{ seller_credit.trades }} 笔成交 · {% endif %}
+        {% if seller_credit.rate is not none %}
+          <span style="color:var(--ok);">好评率 {{ seller_credit.rate }}%</span>
+          （{{ seller_credit.good }} 好 / {{ seller_credit.bad }} 差）
+        {% else %}
+          <span class="muted">暂无交易评价</span>
+        {% endif %}
+      </dd>
       <dt>发布</dt><dd>{{ item.created_at }}</dd>
     </dl>
+
+    {% if current_user and current_user.id != item.user_id and not reported %}
+    <details class="tipbox" style="cursor:pointer;">
+      <summary style="color:var(--no);">举报该商品</summary>
+      <form method="post" action="{{ url_for('market_report') }}" style="margin-top:8px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="target_type" value="item">
+        <input type="hidden" name="target_id" value="{{ item.id }}">
+        <select class="mkt-select" name="reason" style="width:100%;">
+          {% for r in report_reasons %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+        </select>
+        <textarea class="mkt-search" style="width:100%;min-height:56px;margin-top:8px;resize:vertical;" name="detail" maxlength="500" placeholder="补充说明（可选）"></textarea>
+        <div class="mrow" style="margin-top:8px;"><button class="btn" type="submit">提交举报</button></div>
+      </form>
+    </details>
+    {% elif reported %}
+    <div class="qr-note">你已举报过该商品，等待管理员处理。</div>
+    {% endif %}
 
     {% if current_user %}
       {% if current_user.id == item.user_id %}

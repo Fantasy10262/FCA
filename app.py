@@ -122,8 +122,7 @@ def init_db():
     db.executescript(PG_SCHEMA if is_postgres() else SQLITE_SCHEMA)
     db.commit()
     seed(db)
-    if not is_postgres():
-        migrate_db(db)
+    migrate_db(db)
     db.close()
 
 
@@ -254,11 +253,31 @@ def seed_learn(db):
 
 
 def migrate_db(db):
-    """把历史数据归并为「测试点」模型，并保证表结构兼容。"""
-    # 旧库可能还没有 point_id 列，补上
-    cols = [r[1] for r in db.execute("PRAGMA table_info(testcases)")]
-    if "point_id" not in cols:
-        db.execute("ALTER TABLE testcases ADD COLUMN point_id INTEGER")
+    """历史数据归并 + 双引擎存量库结构兼容（SQLite 与 Postgres 都执行）。"""
+    # ---- 存量库补列（新库建表语句已含这些列，这里只对旧库生效）----
+    if is_postgres():
+        for col, ddl in [
+            ("status", "TEXT NOT NULL DEFAULT 'active'"),
+            ("market_contact", "TEXT NOT NULL DEFAULT ''"),
+            ("market_bio", "TEXT NOT NULL DEFAULT ''"),
+            ("market_verified_at", "TEXT NOT NULL DEFAULT ''"),
+        ]:
+            db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS %s %s" % (col, ddl))
+    else:
+        cols = [r[1] for r in db.execute("PRAGMA table_info(users)")]
+        for col, ddl in [
+            ("status", "TEXT NOT NULL DEFAULT 'active'"),
+            ("market_contact", "TEXT NOT NULL DEFAULT ''"),
+            ("market_bio", "TEXT NOT NULL DEFAULT ''"),
+            ("market_verified_at", "TEXT NOT NULL DEFAULT ''"),
+        ]:
+            if col not in cols:
+                db.execute("ALTER TABLE users ADD COLUMN %s %s" % (col, ddl))
+    # 旧库 testcases 可能还没有 point_id 列，补上（SQLite 特有）
+    if not is_postgres():
+        cols = [r[1] for r in db.execute("PRAGMA table_info(testcases)")]
+        if "point_id" not in cols:
+            db.execute("ALTER TABLE testcases ADD COLUMN point_id INTEGER")
     # 把遗留的「每用例=1测试点」数据归并为正式测试点（仅当尚无测试点时）
     if db.execute("SELECT COUNT(*) c FROM test_points").fetchone()["c"] == 0:
         rows = db.execute(
@@ -407,6 +426,8 @@ def login():
             flash("该学号对应的姓名不正确", "danger")
         elif not check_password_hash(user["password_hash"], pw):
             flash("密码错误", "danger")
+        elif user["status"] == "disabled":
+            flash("该账号已被封禁，如有疑问请联系管理员", "danger")
         else:
             session["user"] = {
                 "id": user["id"],
@@ -1459,6 +1480,52 @@ def market_counts(db):
     return {"total": sum(by_cat.values()), "by_cat": by_cat}
 
 
+REPORT_REASONS = ["虚假信息", "商品问题", "欺诈行为", "骚扰辱骂", "其他"]
+
+
+def market_user(db, uid):
+    """取用户市场状态（账号状态 + 实名资料）。"""
+    u = db.execute(
+        "SELECT status, market_contact, market_bio, market_verified_at FROM users WHERE id=?",
+        (uid,),
+    ).fetchone()
+    return row_to_dict(u) if u else {}
+
+
+def market_blocked_reason(db, uid):
+    """市场准入检查：返回 None 表示可参与交易，否则返回需提示的文案。"""
+    u = market_user(db, uid)
+    if u.get("status") == "disabled":
+        return "账号已被封禁"
+    if not u.get("market_contact"):
+        return "请先完善实名资料"
+    return None
+
+
+def market_credit(db, uid):
+    """统计用户信用：成交笔数 + 好评/中评/差评 + 好评率。"""
+    sold = db.execute(
+        "SELECT COUNT(*) c FROM market_orders WHERE seller_id=? AND status='completed'",
+        (uid,),
+    ).fetchone()["c"]
+    bought = db.execute(
+        "SELECT COUNT(*) c FROM market_orders WHERE buyer_id=? AND status='completed'",
+        (uid,),
+    ).fetchone()["c"]
+    rows = db.execute(
+        "SELECT rating, COUNT(*) c FROM market_reviews WHERE reviewee_id=? GROUP BY rating",
+        (uid,),
+    ).fetchall()
+    rm = {r["rating"]: r["c"] for r in rows}
+    good, mid, bad = rm.get(1, 0), rm.get(0, 0), rm.get(-1, 0)
+    total = good + mid + bad
+    rate = round(good / total * 100) if total else None
+    return {
+        "trades": sold + bought, "good": good, "mid": mid, "bad": bad,
+        "total": total, "rate": rate,
+    }
+
+
 def _fill_market_order(db, o, uid=None):
     d = row_to_dict(o)
     it = db.execute("SELECT id, title, images, pay_qr FROM market_items WHERE id=?", (d["item_id"],)).fetchone()
@@ -1466,8 +1533,8 @@ def _fill_market_order(db, o, uid=None):
     if d["item"]:
         imgs = json.loads(d["item"].get("images") or "[]")
         d["item"]["cover"] = imgs[0] if imgs else ""
-    b = db.execute("SELECT name, student_id FROM users WHERE id=?", (d["buyer_id"],)).fetchone()
-    s = db.execute("SELECT name, student_id FROM users WHERE id=?", (d["seller_id"],)).fetchone()
+    b = db.execute("SELECT id, name, student_id FROM users WHERE id=?", (d["buyer_id"],)).fetchone()
+    s = db.execute("SELECT id, name, student_id FROM users WHERE id=?", (d["seller_id"],)).fetchone()
     d["buyer"] = row_to_dict(b) if b else {}
     d["seller"] = row_to_dict(s) if s else {}
     if uid is not None:
@@ -1522,6 +1589,7 @@ def market_item(iid):
         flash("商品不存在或已下架", "warning")
         return redirect(url_for("market"))
     my_order = None
+    reported = False
     if session.get("user"):
         o = db.execute(
             "SELECT * FROM market_orders WHERE item_id=? AND buyer_id=? AND status NOT IN ('cancelled') "
@@ -1530,10 +1598,16 @@ def market_item(iid):
         ).fetchone()
         if o:
             my_order = row_to_dict(o)
+        reported = bool(db.execute(
+            "SELECT id FROM market_reports WHERE target_type='item' AND target_id=? AND reporter_id=?",
+            (iid, session["user"]["id"]),
+        ).fetchone())
+    seller_credit = market_credit(db, item["user_id"])
     return render_template(
         "market_item.html", item=item, categories=MARKET_CATEGORIES,
         my_order=my_order, status_names=ORDER_STATUS_NAMES,
         market_counts=market_counts(db),
+        seller_credit=seller_credit, reported=reported, report_reasons=REPORT_REASONS,
     )
 
 
@@ -1582,6 +1656,11 @@ def _market_upload_images(request):
 @app.route("/market/post", methods=["GET", "POST"])
 @login_required
 def market_post():
+    db = get_db()
+    reason = market_blocked_reason(db, session["user"]["id"])
+    if reason:
+        flash(reason + "，才能发布商品", "warning")
+        return redirect(url_for("market_verify", next=url_for("market_post")))
     if request.method == "POST":
         errors, title, price, desc = _market_form_errors(request.form)
         category = (request.form.get("category") or "其他").strip()
@@ -1627,6 +1706,10 @@ def market_post():
 @login_required
 def market_post_edit(iid):
     db = get_db()
+    reason = market_blocked_reason(db, session["user"]["id"])
+    if reason:
+        flash(reason + "，才能编辑商品", "warning")
+        return redirect(url_for("market_verify", next=url_for("market_post_edit", iid=iid)))
     item = get_market_item(iid)
     if not item or item["user_id"] != session["user"]["id"]:
         flash("无权操作", "danger")
@@ -1701,6 +1784,10 @@ def market_post_close(iid):
 @login_required
 def market_order_create(iid):
     db = get_db()
+    reason = market_blocked_reason(db, session["user"]["id"])
+    if reason:
+        flash(reason + "，才能下单购买", "warning")
+        return redirect(url_for("market_verify", next=url_for("market_item", iid=iid)))
     item = db.execute("SELECT * FROM market_items WHERE id=?", (iid,)).fetchone()
     if not item or item["status"] != "approved":
         flash("商品不可购买", "danger")
@@ -1805,7 +1892,110 @@ def market_orders():
         _fill_market_order(db, o, uid)
         for o in db.execute("SELECT * FROM market_orders WHERE seller_id=? ORDER BY id DESC", (uid,)).fetchall()
     ]
-    return render_template("market_orders.html", bought=bought, sold=sold, status_names=ORDER_STATUS_NAMES)
+    # 给每个订单补充我的评价（已评/未评）与是否已举报对方
+    for group in (bought, sold):
+        for o in group:
+            rev = db.execute(
+                "SELECT rating, comment FROM market_reviews WHERE order_id=? AND reviewer_id=?",
+                (o["id"], uid),
+            ).fetchone()
+            o["my_review"] = row_to_dict(rev) if rev else None
+            o["reported_peer"] = bool(db.execute(
+                "SELECT id FROM market_reports WHERE target_type='user' AND target_id=? AND reporter_id=?",
+                (o["peer"].get("id") or 0, uid),
+            ).fetchone())
+    return render_template(
+        "market_orders.html", bought=bought, sold=sold,
+        status_names=ORDER_STATUS_NAMES, report_reasons=REPORT_REASONS,
+    )
+
+
+@app.route("/market/verify", methods=["GET", "POST"])
+@login_required
+def market_verify():
+    """实名资料：参与二手交易（发布/下单）前必须先完善联系方式等资料。"""
+    db = get_db()
+    uid = session["user"]["id"]
+    if request.method == "POST":
+        contact = (request.form.get("contact") or "").strip()
+        bio = (request.form.get("bio") or "").strip()
+        if not contact:
+            flash("联系方式必填（微信/QQ/手机号）", "danger")
+        elif len(contact) > 120:
+            flash("联系方式不能超过 120 字", "danger")
+        else:
+            db.execute(
+                "UPDATE users SET market_contact=?, market_bio=?, market_verified_at=? WHERE id=?",
+                (contact, bio[:200], datetime.now().strftime("%Y-%m-%d %H:%M:%S"), uid),
+            )
+            db.commit()
+            flash("实名资料已保存，可以参与交易了", "success")
+            nxt = request.args.get("next") or url_for("market")
+            if nxt.startswith("/"):
+                return redirect(nxt)
+            return redirect(url_for("market"))
+    u = market_user(db, uid)
+    credit = market_credit(db, uid)
+    return render_template("market_verify.html", u=u, credit=credit, user=session["user"])
+
+
+@app.route("/market/review/<int:oid>", methods=["POST"])
+@login_required
+def market_review(oid):
+    """交易完成后互评（好评/中评/差评 + 一句话），每单每人一次。"""
+    db = get_db()
+    o = db.execute("SELECT * FROM market_orders WHERE id=?", (oid,)).fetchone()
+    if not o or o["status"] != "completed":
+        flash("订单不存在或未完成，无法评价", "danger")
+        return redirect(url_for("market_orders"))
+    uid = session["user"]["id"]
+    if uid not in (o["buyer_id"], o["seller_id"]):
+        flash("无权评价该订单", "danger")
+        return redirect(url_for("market_orders"))
+    try:
+        rating = int(request.form.get("rating") or "0")
+    except ValueError:
+        rating = 0
+    if rating not in (1, 0, -1):
+        flash("评价等级不正确", "danger")
+        return redirect(url_for("market_orders"))
+    comment = (request.form.get("comment") or "").strip()[:200]
+    reviewee = o["seller_id"] if uid == o["buyer_id"] else o["buyer_id"]
+    try:
+        db.execute(
+            "INSERT INTO market_reviews (order_id, reviewer_id, reviewee_id, rating, comment) VALUES (?,?,?,?,?)",
+            (oid, uid, reviewee, rating, comment),
+        )
+        db.commit()
+        flash("评价成功，感谢反馈", "success")
+    except IntegrityError:
+        flash("你已评价过该订单", "warning")
+    return redirect(url_for("market_orders"))
+
+
+@app.route("/market/report", methods=["POST"])
+@login_required
+def market_report():
+    """举报商品/用户/订单，同一目标同一人只能报一次。"""
+    db = get_db()
+    target_type = (request.form.get("target_type") or "").strip()
+    target_id = (request.form.get("target_id") or "").strip()
+    reason = (request.form.get("reason") or "").strip()[:50]
+    detail = (request.form.get("detail") or "").strip()[:500]
+    if target_type not in ("item", "user", "order") or not target_id.isdigit():
+        flash("举报信息不完整", "danger")
+        return redirect(request.referrer or url_for("market"))
+    uid = session["user"]["id"]
+    try:
+        db.execute(
+            "INSERT INTO market_reports (target_type, target_id, reporter_id, reason, detail) VALUES (?,?,?,?,?)",
+            (target_type, int(target_id), uid, reason, detail),
+        )
+        db.commit()
+        flash("举报已提交，管理员会尽快处理", "success")
+    except IntegrityError:
+        flash("你已举报过该内容，请等待处理", "warning")
+    return redirect(request.referrer or url_for("market"))
 
 
 @app.route("/admin/market")
@@ -1875,6 +2065,81 @@ def admin_market_delete(iid):
     db.commit()
     flash("已删除商品及其关联订单", "success")
     return redirect(url_for("admin_market"))
+
+
+@app.route("/admin/market/reports")
+@admin_required
+def admin_market_reports():
+    """举报处理中心：查看举报，可封禁被举报用户 / 下架商品 / 驳回举报。"""
+    db = get_db()
+    rows = db.execute(
+        "SELECT * FROM market_reports ORDER BY (status='pending') DESC, id DESC LIMIT 100"
+    ).fetchall()
+    reports = []
+    for r in rows:
+        d = row_to_dict(r)
+        rp = db.execute("SELECT name, student_id FROM users WHERE id=?", (d["reporter_id"],)).fetchone()
+        d["reporter"] = row_to_dict(rp) if rp else {}
+        d["target"] = {}
+        if d["target_type"] == "item":
+            it = db.execute("SELECT id, title, user_id, status FROM market_items WHERE id=?", (d["target_id"],)).fetchone()
+            d["target"] = row_to_dict(it) if it else {}
+        elif d["target_type"] == "user":
+            u = db.execute("SELECT id, name, student_id, status FROM users WHERE id=?", (d["target_id"],)).fetchone()
+            d["target"] = row_to_dict(u) if u else {}
+        elif d["target_type"] == "order":
+            o = db.execute("SELECT id, item_id, buyer_id, seller_id FROM market_orders WHERE id=?", (d["target_id"],)).fetchone()
+            d["target"] = row_to_dict(o) if o else {}
+        reports.append(d)
+    return render_template("admin_market_reports.html", reports=reports, report_reasons=REPORT_REASONS)
+
+
+@app.route("/admin/market/reports/<int:rid>/resolve", methods=["POST"])
+@admin_required
+def admin_market_report_resolve(rid):
+    db = get_db()
+    db.execute("UPDATE market_reports SET status='resolved' WHERE id=?", (rid,))
+    db.commit()
+    flash("已标记处理完成", "success")
+    return redirect(url_for("admin_market_reports"))
+
+
+@app.route("/admin/market/reports/<int:rid>/dismiss", methods=["POST"])
+@admin_required
+def admin_market_report_dismiss(rid):
+    db = get_db()
+    db.execute("UPDATE market_reports SET status='dismissed' WHERE id=?", (rid,))
+    db.commit()
+    flash("已驳回该举报", "success")
+    return redirect(url_for("admin_market_reports"))
+
+
+@app.route("/admin/user/<int:uid>/ban", methods=["POST"])
+@admin_required
+def admin_user_ban(uid):
+    db = get_db()
+    u = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    if not u or u["role"] == "admin":
+        flash("该用户不存在或不能封禁管理员", "danger")
+        return redirect(url_for("admin_market_reports"))
+    db.execute("UPDATE users SET status='disabled' WHERE id=?", (uid,))
+    db.commit()
+    flash("已封禁 %s（该账号将无法登录，其商品仍在售建议一并下架）" % u["name"], "warning")
+    return redirect(request.referrer or url_for("admin_market_reports"))
+
+
+@app.route("/admin/user/<int:uid>/unban", methods=["POST"])
+@admin_required
+def admin_user_unban(uid):
+    db = get_db()
+    u = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    if not u:
+        flash("用户不存在", "danger")
+        return redirect(url_for("admin_market_reports"))
+    db.execute("UPDATE users SET status='active' WHERE id=?", (uid,))
+    db.commit()
+    flash("已解封 " + u["name"], "success")
+    return redirect(request.referrer or url_for("admin_market_reports"))
 
 
 @app.route("/healthz")
