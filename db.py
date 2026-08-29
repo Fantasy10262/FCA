@@ -49,10 +49,6 @@ CREATE TABLE IF NOT EXISTS users (
     name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'student',
-    status TEXT NOT NULL DEFAULT 'active',
-    market_contact TEXT NOT NULL DEFAULT '',
-    market_bio TEXT NOT NULL DEFAULT '',
-    market_verified_at TEXT NOT NULL DEFAULT '',
     created_at TEXT DEFAULT (datetime('now','localtime'))
 );
 CREATE TABLE IF NOT EXISTS problems (
@@ -141,74 +137,6 @@ CREATE TABLE IF NOT EXISTS learn_videos (
     FOREIGN KEY (language_id) REFERENCES learn_languages(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_lv_lang ON learn_videos(language_id);
-
-CREATE TABLE IF NOT EXISTS market_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL DEFAULT '',
-    category TEXT NOT NULL DEFAULT '其他',
-    price TEXT NOT NULL DEFAULT '0',
-    contact TEXT NOT NULL DEFAULT '',
-    pay_qr TEXT NOT NULL DEFAULT '',
-    images TEXT NOT NULL DEFAULT '[]',
-    status TEXT NOT NULL DEFAULT 'pending',
-    reject_reason TEXT NOT NULL DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now','localtime')),
-    FOREIGN KEY (user_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_mi_user ON market_items(user_id);
-CREATE INDEX IF NOT EXISTS idx_mi_status ON market_items(status);
-
-CREATE TABLE IF NOT EXISTS market_orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    item_id INTEGER NOT NULL,
-    buyer_id INTEGER NOT NULL,
-    seller_id INTEGER NOT NULL,
-    price TEXT NOT NULL DEFAULT '0',
-    status TEXT NOT NULL DEFAULT 'pending',
-    note TEXT NOT NULL DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now','localtime')),
-    paid_at TEXT DEFAULT '',
-    delivered_at TEXT DEFAULT '',
-    completed_at TEXT DEFAULT '',
-    cancelled_at TEXT DEFAULT '',
-    FOREIGN KEY (item_id) REFERENCES market_items(id),
-    FOREIGN KEY (buyer_id) REFERENCES users(id),
-    FOREIGN KEY (seller_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_mo_buyer ON market_orders(buyer_id);
-CREATE INDEX IF NOT EXISTS idx_mo_seller ON market_orders(seller_id);
-CREATE INDEX IF NOT EXISTS idx_mo_item ON market_orders(item_id);
-
-CREATE TABLE IF NOT EXISTS market_reviews (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL,
-    reviewer_id INTEGER NOT NULL,
-    reviewee_id INTEGER NOT NULL,
-    rating INTEGER NOT NULL DEFAULT 0,
-    comment TEXT NOT NULL DEFAULT '',
-    created_at TEXT DEFAULT (datetime('now','localtime')),
-    UNIQUE (order_id, reviewer_id),
-    FOREIGN KEY (order_id) REFERENCES market_orders(id),
-    FOREIGN KEY (reviewer_id) REFERENCES users(id),
-    FOREIGN KEY (reviewee_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_mr_reviewee ON market_reviews(reviewee_id);
-
-CREATE TABLE IF NOT EXISTS market_reports (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    target_type TEXT NOT NULL,
-    target_id INTEGER NOT NULL,
-    reporter_id INTEGER NOT NULL,
-    reason TEXT NOT NULL DEFAULT '',
-    detail TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'pending',
-    created_at TEXT DEFAULT (datetime('now','localtime')),
-    UNIQUE (target_type, target_id, reporter_id),
-    FOREIGN KEY (reporter_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_mrp_status ON market_reports(status);
 """
 
 # --------------------------------------------------------------------------
@@ -221,10 +149,6 @@ CREATE TABLE IF NOT EXISTS users (
     name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'student',
-    status TEXT NOT NULL DEFAULT 'active',
-    market_contact TEXT NOT NULL DEFAULT '',
-    market_bio TEXT NOT NULL DEFAULT '',
-    market_verified_at TEXT NOT NULL DEFAULT '',
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS problems (
@@ -313,74 +237,6 @@ CREATE TABLE IF NOT EXISTS learn_videos (
     FOREIGN KEY (language_id) REFERENCES learn_languages(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_lv_lang ON learn_videos(language_id);
-
-CREATE TABLE IF NOT EXISTS market_items (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL DEFAULT '',
-    category TEXT NOT NULL DEFAULT '其他',
-    price TEXT NOT NULL DEFAULT '0',
-    contact TEXT NOT NULL DEFAULT '',
-    pay_qr TEXT NOT NULL DEFAULT '',
-    images TEXT NOT NULL DEFAULT '[]',
-    status TEXT NOT NULL DEFAULT 'pending',
-    reject_reason TEXT NOT NULL DEFAULT '',
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_mi_user ON market_items(user_id);
-CREATE INDEX IF NOT EXISTS idx_mi_status ON market_items(status);
-
-CREATE TABLE IF NOT EXISTS market_orders (
-    id SERIAL PRIMARY KEY,
-    item_id INTEGER NOT NULL,
-    buyer_id INTEGER NOT NULL,
-    seller_id INTEGER NOT NULL,
-    price TEXT NOT NULL DEFAULT '0',
-    status TEXT NOT NULL DEFAULT 'pending',
-    note TEXT NOT NULL DEFAULT '',
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    paid_at TEXT DEFAULT '',
-    delivered_at TEXT DEFAULT '',
-    completed_at TEXT DEFAULT '',
-    cancelled_at TEXT DEFAULT '',
-    FOREIGN KEY (item_id) REFERENCES market_items(id),
-    FOREIGN KEY (buyer_id) REFERENCES users(id),
-    FOREIGN KEY (seller_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_mo_buyer ON market_orders(buyer_id);
-CREATE INDEX IF NOT EXISTS idx_mo_seller ON market_orders(seller_id);
-CREATE INDEX IF NOT EXISTS idx_mo_item ON market_orders(item_id);
-
-CREATE TABLE IF NOT EXISTS market_reviews (
-    id SERIAL PRIMARY KEY,
-    order_id INTEGER NOT NULL,
-    reviewer_id INTEGER NOT NULL,
-    reviewee_id INTEGER NOT NULL,
-    rating INTEGER NOT NULL DEFAULT 0,
-    comment TEXT NOT NULL DEFAULT '',
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (order_id, reviewer_id),
-    FOREIGN KEY (order_id) REFERENCES market_orders(id),
-    FOREIGN KEY (reviewer_id) REFERENCES users(id),
-    FOREIGN KEY (reviewee_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_mr_reviewee ON market_reviews(reviewee_id);
-
-CREATE TABLE IF NOT EXISTS market_reports (
-    id SERIAL PRIMARY KEY,
-    target_type TEXT NOT NULL,
-    target_id INTEGER NOT NULL,
-    reporter_id INTEGER NOT NULL,
-    reason TEXT NOT NULL DEFAULT '',
-    detail TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'pending',
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (target_type, target_id, reporter_id),
-    FOREIGN KEY (reporter_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_mrp_status ON market_reports(status);
 """
 
 # 复合主键、无单独 id 列的表（INSERT 时不要自动追加 RETURNING id）
