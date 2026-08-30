@@ -5,8 +5,8 @@
   <div class="login-grid">
     <!-- 左：文案 -->
     <div class="login-hero">
-      <p class="hero-eyebrow" data-depth="6">FANTASY CODING ARENA</p>
-      <h1 class="login-display"><span class="dh-word" data-depth="10">加入</span><span class="gradient-text dh-word" data-depth="20">竞技场</span></h1>
+      <p class="hero-eyebrow">FANTASY CODING ARENA</p>
+      <h1 class="login-display"><span class="dh-word">加入</span><span class="gradient-text dh-word">竞技场</span></h1>
       <p class="hero-sub">创建你的专属账号，<br>随时回来刷题、查看进度、管理密码。</p>
       <div class="hero-meta">
         <span>多语言在线判题</span><i>·</i><span>实时评测反馈</span><i>·</i><span>进度可视化</span>
@@ -14,7 +14,7 @@
     </div>
 
     <!-- 右：注册卡片 -->
-    <div class="login-wrap raise">
+    <div class="login-wrap">
       <div class="lw-head">
         <div class="logo">FCA</div>
         <p class="lw-title">注 册</p>
@@ -37,7 +37,7 @@
           <input type="password" name="password2" required autocomplete="new-password"
                  placeholder="再输入一次密码">
         </label>
-        <button type="submit" class="elastic">创 建 账 号 <span class="arw">→</span></button>
+        <button type="submit" class="btn">创建账号 →</button>
       </form>
       <p class="muted">已有账号？<a href="{{ url_for('login') }}">直接登录</a></p>
     </div>
