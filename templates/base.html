@@ -75,6 +75,25 @@
           if (e.target.closest('a')) topbar.classList.remove('open');
         });
       }
+      /* 页面切换加载条：点击站内链接立即显示，页面到达/后退时消失 */
+      var bar = document.createElement('div');
+      bar.className = 'pageload';
+      bar.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(bar);
+      var hideTimer = null;
+      document.addEventListener('click', function (e) {
+        var a = e.target.closest('a');
+        if (!a) return;
+        var url = a.getAttribute('href') || '';
+        if (!url || url.charAt(0) === '#') return;
+        if (a.target === '_blank' || a.hasAttribute('download')) return;
+        if (a.origin !== location.origin) return;
+        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        bar.classList.add('on');
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(function () { bar.classList.remove('on'); }, 8000);
+      }, true);
+      window.addEventListener('pageshow', function () { bar.classList.remove('on'); });
     })();
   </script>
   <script src="{{ url_for('static', filename='app.js') }}?v={{ static_v.appjs }}" defer></script>
