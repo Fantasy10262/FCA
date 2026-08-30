@@ -414,18 +414,16 @@ def set_completion(db, sid):
     solved_map, tried = {}, set()
     if pids:
         ph = ",".join("?" * total)
+        # 一条查询同时取 solved 与 tried，省一次跨区数据库往返
         rows = db.execute(
-            "SELECT DISTINCT user_id, problem_id FROM submissions "
-            "WHERE problem_id IN (%s) AND status='AC'" % ph,
+            "SELECT user_id, problem_id, status FROM submissions "
+            "WHERE problem_id IN (%s)" % ph,
             pids,
         ).fetchall()
         for r in rows:
-            solved_map.setdefault(r["user_id"], set()).add(r["problem_id"])
-        tried_rows = db.execute(
-            "SELECT DISTINCT user_id FROM submissions WHERE problem_id IN (%s)" % ph,
-            pids,
-        ).fetchall()
-        tried = {r["user_id"] for r in tried_rows}
+            if r["status"] == "AC":
+                solved_map.setdefault(r["user_id"], set()).add(r["problem_id"])
+            tried.add(r["user_id"])
     ranking = []
     for u in students:
         if u["id"] not in tried:
@@ -578,18 +576,17 @@ def index():
             return redirect(url_for("admin_dashboard"))
         return redirect(url_for("problems"))
     db = get_db()
-    def _cnt(sql):
-        try:
-            row = db.execute(sql).fetchone()
-            return row["c"] if row else 0
-        except Exception:
-            return 0
-    stats = {
-        "problems": _cnt("SELECT COUNT(*) AS c FROM problems"),
-        "submissions": _cnt("SELECT COUNT(*) AS c FROM submissions"),
-        "languages": _cnt("SELECT COUNT(*) AS c FROM learn_languages"),
-        "students": _cnt("SELECT COUNT(*) AS c FROM users"),
-    }
+    # 四个统计合并为一条 SQL：跨区链路下省掉 3 次数据库往返
+    try:
+        row = db.execute(
+            "SELECT (SELECT COUNT(*) FROM problems) AS problems, "
+            "(SELECT COUNT(*) FROM submissions) AS submissions, "
+            "(SELECT COUNT(DISTINCT language) FROM problems) AS languages, "
+            "(SELECT COUNT(*) FROM users) AS students"
+        ).fetchone()
+        stats = {k: row[k] for k in ("problems", "submissions", "languages", "students")}
+    except Exception:
+        stats = {"problems": 0, "submissions": 0, "languages": 0, "students": 0}
     return render_template("index.html", stats=stats)
 
 

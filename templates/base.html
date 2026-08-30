@@ -75,12 +75,20 @@
           if (e.target.closest('a')) topbar.classList.remove('open');
         });
       }
-      /* 页面切换加载条：点击站内链接立即显示，页面到达/后退时消失 */
+      /* 页面切换加载条：点击站内链接立即显示流动条；
+         新页面到达时冲到 100% 再淡出（通过 sessionStorage 接力状态）。 */
       var bar = document.createElement('div');
       bar.className = 'pageload';
       bar.setAttribute('aria-hidden', 'true');
       document.body.appendChild(bar);
       var hideTimer = null;
+      try {
+        if (sessionStorage.getItem('fca_nav') === '1') {
+          sessionStorage.removeItem('fca_nav');
+          bar.classList.add('done');
+          setTimeout(function () { bar.classList.remove('done'); }, 420);
+        }
+      } catch (e) { /* 隐私模式下 sessionStorage 不可用，忽略 */ }
       document.addEventListener('click', function (e) {
         var a = e.target.closest('a');
         if (!a) return;
@@ -90,6 +98,7 @@
         if (a.origin !== location.origin) return;
         if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         bar.classList.add('on');
+        try { sessionStorage.setItem('fca_nav', '1'); } catch (e) {}
         clearTimeout(hideTimer);
         hideTimer = setTimeout(function () { bar.classList.remove('on'); }, 8000);
       }, true);
