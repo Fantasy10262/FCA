@@ -348,15 +348,16 @@ def set_completion(db, sid):
     计算某题目集的完成度与排名。
     返回 (pids, total, ranking, overall, n_students)
     - ranking: 按 solved 降序（相同 solved 共享名次，1224 竞赛排名），
-      每项 {uid, name, sid, solved, total, pct, rank}
-    - overall: 全体学生的平均完成度（%）
+      每项 {uid, name, sid, solved, total, pct, rank}；
+      从未尝试过该题目集任何题目的学生不出现在榜中
+    - overall: 上榜学生的平均完成度（%）
     """
     pids = get_set_problems(db, sid)
     total = len(pids)
     students = db.execute(
         "SELECT id, name, student_id FROM users WHERE role='student' ORDER BY student_id"
     ).fetchall()
-    solved_map = {}
+    solved_map, tried = {}, set()
     if pids:
         ph = ",".join("?" * total)
         rows = db.execute(
@@ -366,8 +367,15 @@ def set_completion(db, sid):
         ).fetchall()
         for r in rows:
             solved_map.setdefault(r["user_id"], set()).add(r["problem_id"])
+        tried_rows = db.execute(
+            "SELECT DISTINCT user_id FROM submissions WHERE problem_id IN (%s)" % ph,
+            pids,
+        ).fetchall()
+        tried = {r["user_id"] for r in tried_rows}
     ranking = []
     for u in students:
+        if u["id"] not in tried:
+            continue  # 一道都没尝试过的学生不上榜
         solved = len(solved_map.get(u["id"], set()))
         pct = round(solved / total * 100) if total else 0
         ranking.append({
@@ -441,6 +449,8 @@ def register():
         errors = []
         if not sid:
             errors.append("学号不能为空")
+        elif not (sid.isdigit() and 2026085001 <= int(sid) <= 2026085120):
+            errors.append("学号必须为 2026085001 ~ 2026085120 之间的 10 位数字")
         if not name:
             errors.append("姓名不能为空")
         if len(pw) < 6:
