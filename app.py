@@ -7,6 +7,9 @@ PTA 风格在线判题平台（Flask + SQLite）
 import os
 import re
 import json
+import time
+import gzip
+import threading
 from functools import wraps
 
 from db import connect, is_postgres, PG_SCHEMA, SQLITE_SCHEMA, IntegrityError
@@ -29,6 +32,9 @@ os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 app = Flask(__name__)
 app.secret_key = os.environ.get("OJ_SECRET", "change-me-in-production-oj-secret")
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8MB 上传上限
+# 静态资源强缓存 1 年：模板引用均带 ?v=<文件mtime>，内容变更自动换 URL 失效旧缓存。
+# 收益：Monaco 编辑器等数百个静态文件二次访问直接走浏览器缓存，跨境不再重复下载。
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000
 
 # CSRF 防护：所有 POST/PUT/DELETE 请求必须携带 csrf_token。
 # 令牌由 base.html 的 <meta name="csrf-token"> 提供，app.js 在表单提交时自动注入。
@@ -42,17 +48,14 @@ def _csrf_error(e):
     return redirect(request.referrer or url_for("login"))
 
 
-# 静态资源缓存：CSS/JS 走强校验（每次重新拉取最新），图片字体二进制走永久缓存。
-# 同时通过 _static_versions 给模板注入 ?v=<mtime>，彻底解决「CSS 改了浏览器还显示老版本」。
+# 静态资源缓存：全部永久缓存（immutable）。CSS/JS 引用均带 ?v=<mtime>，
+# 文件一变 URL 即变，浏览器自动拉新版，不会出现「改了还是旧样式」。
+# 收益：Monaco 等数百个静态文件二次访问零网络请求，跨境页面秒开。
 @app.after_request
 def _cache_headers(resp):
     p = request.path
     if p.startswith("/static/"):
-        low = p.lower()
-        if low.endswith(".css") or low.endswith(".js") or low.endswith(".html"):
-            resp.headers["Cache-Control"] = "no-cache, must-revalidate"
-        else:
-            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     else:
         resp.headers["Cache-Control"] = "no-store"
     resp.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -99,19 +102,70 @@ def _augment_compiler_path():
 _augment_compiler_path()
 
 
+@app.after_request
+def _gzip_response(resp):
+    """对文本类响应做 gzip 压缩：跨境链路下 HTML/CSS/JS 体积减约 70%，点击明显变快。"""
+    if resp.status_code < 200 or resp.status_code >= 300 or resp.direct_passthrough:
+        return resp
+    mimetype = resp.mimetype or ""
+    if not (mimetype.startswith("text/") or mimetype in (
+            "application/json", "application/javascript", "image/svg+xml")):
+        return resp
+    if "gzip" not in (request.headers.get("Accept-Encoding") or ""):
+        return resp
+    if "Content-Encoding" in resp.headers:
+        return resp
+    data = resp.get_data()
+    if len(data) < 300:  # 太小不值得压
+        return resp
+    resp.set_data(gzip.compress(data, 6))
+    resp.headers["Content-Encoding"] = "gzip"
+    resp.headers["Content-Length"] = str(len(resp.get_data()))
+    resp.headers.add("Vary", "Accept-Encoding")
+    return resp
+
+
 # ----------------------------- 数据库 -----------------------------
+# 连接跨请求复用（按线程各持一条）：省掉每页一次 TCP+TLS 握手到 Supabase 的
+# 200~400ms。线程本地存储保证并发安全（每线程独立连接）。
+_db_tls = threading.local()
+
+
+def _db_drop():
+    db = getattr(_db_tls, "db", None)
+    if db is not None:
+        try:
+            db.close()
+        except Exception:
+            pass
+        _db_tls.db = None
+
+
 def get_db():
-    db = getattr(g, "_db", None)
+    db = getattr(_db_tls, "db", None)
+    now = time.time()
+    if db is not None:
+        idle = now - getattr(_db_tls, "last_used", 0)
+        if idle > 5:
+            # 空闲超过 5s 的连接先轻探活（pooler/防火墙可能掐掉空闲连接），
+            # 一次 SELECT 1 的往返远比完整 TLS 握手便宜；坏了就重建。
+            try:
+                db.execute("SELECT 1")
+            except Exception:
+                _db_drop()
+                db = None
     if db is None:
-        db = g._db = connect()
+        db = _db_tls.db = connect()
+    _db_tls.last_used = now
     return db
 
 
 @app.teardown_appcontext
 def close_db(exc):
-    db = getattr(g, "_db", None)
-    if db is not None:
-        db.close()
+    _db_tls.last_used = time.time()
+    if exc is not None:
+        # 请求出错时丢弃连接，避免下次复用到坏连接
+        _db_drop()
 
 
 def init_db():
